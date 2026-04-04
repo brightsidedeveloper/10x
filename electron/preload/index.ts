@@ -265,6 +265,14 @@ const api = {
       sessionId: string,
       meta: { label: string; notificationWorkspace: string; notificationAgent: string },
     ): void => ipcRenderer.send('agent:update-session-labels', sessionId, meta),
+    getNotificationPrefs: (): Promise<{ pushEnabled: boolean; soundEnabled: boolean }> =>
+      ipcRenderer.invoke('agent:get-notification-prefs'),
+    setNotificationPrefs: (
+      prefs: { pushEnabled: boolean; soundEnabled: boolean },
+    ): Promise<
+      | { ok: true; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
+      | { ok: false; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
+    > => ipcRenderer.invoke('agent:set-notification-prefs', prefs),
     onNavigateToSession: (
       handler: (payload: { sessionId: string }) => void,
     ): (() => void) => {

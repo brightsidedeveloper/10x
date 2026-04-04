@@ -175,6 +175,14 @@ declare global {
           sessionId: string,
           meta: { label: string; notificationWorkspace: string; notificationAgent: string },
         ) => void
+        getNotificationPrefs: () => Promise<{ pushEnabled: boolean; soundEnabled: boolean }>
+        setNotificationPrefs: (prefs: {
+          pushEnabled: boolean
+          soundEnabled: boolean
+        }) => Promise<
+          | { ok: true; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
+          | { ok: false; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
+        >
       }
       pty: {
         create: (opts: {

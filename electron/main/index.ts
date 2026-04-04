@@ -3,8 +3,6 @@ import type { IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
-import Store from 'electron-store'
-
 import { registerGithubIpc } from './github-ipc'
 import { registerAgentAttentionIpc } from './notification-manager'
 import { registerGitIpc } from './git-ipc'
@@ -14,30 +12,9 @@ import { registerShellIpc } from './shell-ipc'
 import { registerAppIpc } from './app-ipc'
 import { registerClaudeCodeCliIpc } from './claude-code-cli'
 import { registerUpdaterIpc } from './updater-ipc'
+import { tenxStore, type TenxStoreSchema } from './persisted-store'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-type WorkspaceEntry = { id: string; path: string; label: string }
-
-type PersistedAgentTab = { id: string; label: string; agentPath?: string }
-
-type PersistedAgentBucket = {
-  tabs: PersistedAgentTab[]
-  activeTabId: string | null
-}
-
-type TenxStoreSchema = {
-  workspaces: WorkspaceEntry[]
-  /** Agent tab rows per workspace id (renderer-owned shape, validated on read). */
-  agentTabsByWorkspace: Record<string, PersistedAgentBucket>
-}
-
-const store = new Store<TenxStoreSchema>({
-  defaults: {
-    workspaces: [],
-    agentTabsByWorkspace: {},
-  },
-})
 
 process.env.APP_ROOT = path.join(__dirname, '../..')
 loadEnvFromAppRoot(process.env.APP_ROOT)
@@ -93,7 +70,7 @@ function createWindow() {
 }
 
 ipcMain.handle('store:get', <K extends keyof TenxStoreSchema>(_event: IpcMainInvokeEvent, key: K) =>
-  store.get(key),
+  tenxStore.get(key),
 )
 
 ipcMain.handle(
@@ -103,7 +80,7 @@ ipcMain.handle(
     key: K,
     value: TenxStoreSchema[K],
   ) => {
-    store.set(key, value)
+    tenxStore.set(key, value)
     return true
   },
 )

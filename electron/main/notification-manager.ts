@@ -1,5 +1,7 @@
 import { BrowserWindow, Notification, app, ipcMain } from 'electron'
 
+import { readAgentNotificationPrefs, writeAgentNotificationPrefs } from './persisted-store'
+
 // ─── IPC broadcast ────────────────────────────────────────────────────────────
 
 function broadcastAgentState(sessionId: string, session: SessionInfo | null): void {
@@ -228,8 +230,12 @@ function updateBadge(): void {
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
+/** OS toasts + sound only; dock badge and in-app dots are unaffected. */
 function fireNotification(sessionId: string, session: SessionInfo, type: 'complete' | 'needs-input'): void {
   if (!Notification.isSupported()) return
+  const prefs = readAgentNotificationPrefs()
+  if (!prefs.pushEnabled) return
+
   const status = type === 'complete' ? 'Complete' : 'Needs input'
   const ws = session.workspaceLabel.trim()
   const ag = session.agentLabel.trim()
@@ -239,10 +245,10 @@ function fireNotification(sessionId: string, session: SessionInfo, type: 'comple
     const opts: ConstructorParameters<typeof Notification>[0] = {
       title: app.getName(),
       body,
-      silent: false,
+      silent: !prefs.soundEnabled,
     }
-    /** `sound` is macOS-only in Electron; omit on Windows/Linux to avoid invalid options. */
-    if (process.platform === 'darwin') {
+    /** `sound` is macOS-only in Electron; omit when silent so the system does not still play a tone. */
+    if (process.platform === 'darwin' && prefs.soundEnabled) {
       opts.sound = type === 'complete' ? 'Glass' : 'Sosumi'
     }
     const notif = new Notification(opts)
@@ -459,5 +465,22 @@ export function registerAgentAttentionIpc(): void {
       notificationWorkspace: m.notificationWorkspace,
       notificationAgent: m.notificationAgent,
     })
+  })
+
+  ipcMain.handle('agent:get-notification-prefs', () => readAgentNotificationPrefs())
+
+  ipcMain.handle('agent:set-notification-prefs', (_event, payload: unknown) => {
+    if (payload == null || typeof payload !== 'object' || Array.isArray(payload)) {
+      return { ok: false as const, prefs: readAgentNotificationPrefs() }
+    }
+    const p = payload as Record<string, unknown>
+    if (typeof p.pushEnabled !== 'boolean' || typeof p.soundEnabled !== 'boolean') {
+      return { ok: false as const, prefs: readAgentNotificationPrefs() }
+    }
+    const saved = writeAgentNotificationPrefs({
+      pushEnabled: p.pushEnabled,
+      soundEnabled: p.soundEnabled,
+    })
+    return { ok: true as const, prefs: saved }
   })
 }
