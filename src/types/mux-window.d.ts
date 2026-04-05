@@ -42,6 +42,23 @@ declare global {
         cleanupMergedMuxWorktree: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
         init: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
         addAll: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
+        statusFiles: (cwd: string) => Promise<
+          | { ok: true; entries: { path: string; index: string; worktree: string; oldPath?: string }[] }
+          | { ok: false; error: string }
+        >
+        addPaths: (args: {
+          cwd: string
+          paths: string[]
+        }) => Promise<{ ok: true } | { ok: false; error: string }>
+        resetPathsHead: (args: {
+          cwd: string
+          paths: string[]
+        }) => Promise<{ ok: true } | { ok: false; error: string }>
+        unstageAll: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
+        discardWorktreePath: (args: {
+          cwd: string
+          path: string
+        }) => Promise<{ ok: true } | { ok: false; error: string }>
         commit: (args: { cwd: string; message: string }) => Promise<{ ok: true } | { ok: false; error: string }>
         push: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
         pull: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>

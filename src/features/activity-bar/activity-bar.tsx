@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { ActivityBarGitMenu } from './activity-bar-git-menu'
+import { ActivityBarGitScmButton } from './activity-bar-git-scm-button'
 import { activityBarIconButtonClass } from './activity-bar-icon-styles'
 import { Button } from '@/components/ui/button'
 import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-visible-workspace'
@@ -165,7 +165,7 @@ export function ActivityBar() {
           >
             <Terminal className="size-4" />
           </Button>
-          <ActivityBarGitMenu />
+          <ActivityBarGitScmButton />
         </div>
         <div className="mt-auto flex flex-col items-center pb-1 pt-2">
           <Button

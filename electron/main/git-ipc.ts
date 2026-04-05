@@ -240,6 +240,141 @@ export async function gitAddAll(rawPath: string): Promise<GitSimpleResult> {
   return { ok: true }
 }
 
+/** One line from `git status --porcelain` (no branch header). */
+export type GitStatusEntry = {
+  /** Path to use with `git add` / `git reset` (new side of a rename). */
+  path: string
+  /** Index (staged) column; space = none, `?` with untracked pair only on worktree. */
+  index: string
+  /** Work tree column. */
+  worktree: string
+  /** Set when status is rename/copy in the staged column. */
+  oldPath?: string
+}
+
+function assertSafeRepoRelPath(p: string): boolean {
+  if (typeof p !== 'string' || !p.trim() || p.includes('\0')) return false
+  const norm = path.normalize(p.trim())
+  if (path.isAbsolute(norm)) return false
+  return !norm.split(path.sep).includes('..')
+}
+
+/**
+ * Parses `git status --porcelain` into per-file rows (VS Code–style source control).
+ */
+export async function gitStatusFiles(
+  rawPath: string,
+): Promise<{ ok: true; entries: GitStatusEntry[] } | { ok: false; error: string }> {
+  const resolved = await resolveRepoRoot(rawPath)
+  if (!resolved.ok) return resolved
+  const r = await runGit(resolved.root, ['status', '--porcelain'])
+  if (!r.ok) return { ok: false, error: r.error }
+  const entries: GitStatusEntry[] = []
+  for (const rawLine of r.stdout.split('\n')) {
+    const line = rawLine.trimEnd()
+    if (!line) continue
+    if (line.length < 3) continue
+    const index = line[0]!
+    const worktree = line[1]!
+    if (line[2] !== ' ') continue
+    if (index === '!' && worktree === '!') continue
+
+    let rest = line.slice(3)
+    let oldPath: string | undefined
+    const arrow = ' -> '
+    if (
+      rest.includes(arrow) &&
+      (index === 'R' || index === 'C' || worktree === 'R' || worktree === 'C')
+    ) {
+      const ix = rest.indexOf(arrow)
+      oldPath = rest.slice(0, ix)
+      rest = rest.slice(ix + arrow.length)
+    }
+
+    if (!assertSafeRepoRelPath(rest)) continue
+    if (oldPath != null && !assertSafeRepoRelPath(oldPath)) continue
+
+    entries.push({ path: rest, index, worktree, oldPath })
+  }
+  return { ok: true, entries }
+}
+
+export async function gitAddPaths(
+  rawPath: string,
+  relPaths: string[],
+): Promise<GitSimpleResult> {
+  const resolved = await resolveRepoRoot(rawPath)
+  if (!resolved.ok) return resolved
+  const uniq = [...new Set(relPaths.map((p) => p.trim()).filter(Boolean))]
+  if (uniq.length === 0) return { ok: true }
+  for (const p of uniq) {
+    if (!assertSafeRepoRelPath(p)) return { ok: false, error: 'Invalid path.' }
+  }
+  const r = await runGit(resolved.root, ['add', '--', ...uniq])
+  if (!r.ok) return { ok: false, error: r.error }
+  return { ok: true }
+}
+
+export async function gitResetPathsHead(
+  rawPath: string,
+  relPaths: string[],
+): Promise<GitSimpleResult> {
+  const resolved = await resolveRepoRoot(rawPath)
+  if (!resolved.ok) return resolved
+  const uniq = [...new Set(relPaths.map((p) => p.trim()).filter(Boolean))]
+  if (uniq.length === 0) return { ok: true }
+  for (const p of uniq) {
+    if (!assertSafeRepoRelPath(p)) return { ok: false, error: 'Invalid path.' }
+  }
+  const r = await runGit(resolved.root, ['reset', 'HEAD', '--', ...uniq])
+  if (!r.ok) return { ok: false, error: r.error }
+  return { ok: true }
+}
+
+/** Unstage all paths (VS Code “−” on Staged section). */
+export async function gitUnstageAll(rawPath: string): Promise<GitSimpleResult> {
+  const resolved = await resolveRepoRoot(rawPath)
+  if (!resolved.ok) return resolved
+  const r = await runGit(resolved.root, ['reset', '-q', 'HEAD', '--', '.'])
+  if (!r.ok) return { ok: false, error: r.error }
+  return { ok: true }
+}
+
+/**
+ * Discard working-tree changes for one path (VS Code “Discard Changes”).
+ * Untracked paths: `git clean -fd -- path`. Otherwise: `git restore --worktree -- path`.
+ */
+export async function gitDiscardWorktreePath(
+  rawPath: string,
+  relPath: string,
+): Promise<GitSimpleResult> {
+  const resolved = await resolveRepoRoot(rawPath)
+  if (!resolved.ok) return resolved
+  const p = relPath.trim()
+  if (!assertSafeRepoRelPath(p)) return { ok: false, error: 'Invalid path.' }
+
+  const st = await runGit(resolved.root, ['status', '--porcelain', '--', p])
+  if (!st.ok) return { ok: false, error: st.error }
+  const lines = st.stdout.split('\n').map((l) => l.trimEnd()).filter(Boolean)
+  if (lines.length === 0) {
+    return { ok: false, error: 'Path has no local changes to revert.' }
+  }
+  const head = lines[0]!
+  if (head.length < 3 || head[2] !== ' ') {
+    return { ok: false, error: 'Could not read status for this path.' }
+  }
+  const index = head[0]!
+  const worktree = head[1]!
+  if (index === '?' && worktree === '?') {
+    const clean = await runGit(resolved.root, ['clean', '-fd', '--', p])
+    if (!clean.ok) return { ok: false, error: clean.error }
+    return { ok: true }
+  }
+  const restore = await runGit(resolved.root, ['restore', '--worktree', '--', p])
+  if (!restore.ok) return { ok: false, error: restore.error }
+  return { ok: true }
+}
+
 export async function gitCommit(rawPath: string, message: string): Promise<GitSimpleResult> {
   const msg = message.trim()
   if (!msg) return { ok: false, error: 'Commit message cannot be empty.' }
@@ -1252,6 +1387,55 @@ export function registerGitIpc() {
     }
     return gitAddAll(rawPath.trim())
   })
+
+  ipcMain.handle('git:statusFiles', async (_e: IpcMainInvokeEvent, rawPath: string) => {
+    if (typeof rawPath !== 'string' || !rawPath.trim()) {
+      return { ok: false, error: 'Invalid path.' }
+    }
+    return gitStatusFiles(rawPath.trim())
+  })
+
+  ipcMain.handle(
+    'git:addPaths',
+    async (_e: IpcMainInvokeEvent, args: { cwd: string; paths: string[] }) => {
+      if (typeof args?.cwd !== 'string' || !args.cwd.trim()) {
+        return { ok: false, error: 'Invalid path.' } satisfies GitSimpleResult
+      }
+      const paths = Array.isArray(args.paths) ? args.paths : []
+      return gitAddPaths(args.cwd.trim(), paths)
+    },
+  )
+
+  ipcMain.handle(
+    'git:resetPathsHead',
+    async (_e: IpcMainInvokeEvent, args: { cwd: string; paths: string[] }) => {
+      if (typeof args?.cwd !== 'string' || !args.cwd.trim()) {
+        return { ok: false, error: 'Invalid path.' } satisfies GitSimpleResult
+      }
+      const paths = Array.isArray(args.paths) ? args.paths : []
+      return gitResetPathsHead(args.cwd.trim(), paths)
+    },
+  )
+
+  ipcMain.handle('git:unstageAll', async (_e: IpcMainInvokeEvent, rawPath: string) => {
+    if (typeof rawPath !== 'string' || !rawPath.trim()) {
+      return { ok: false, error: 'Invalid path.' } satisfies GitSimpleResult
+    }
+    return gitUnstageAll(rawPath.trim())
+  })
+
+  ipcMain.handle(
+    'git:discardWorktreePath',
+    async (_e: IpcMainInvokeEvent, args: { cwd: string; path: string }) => {
+      if (typeof args?.cwd !== 'string' || !args.cwd.trim()) {
+        return { ok: false, error: 'Invalid path.' } satisfies GitSimpleResult
+      }
+      if (typeof args?.path !== 'string' || !args.path.trim()) {
+        return { ok: false, error: 'Invalid path.' } satisfies GitSimpleResult
+      }
+      return gitDiscardWorktreePath(args.cwd.trim(), args.path.trim())
+    },
+  )
 
   ipcMain.handle(
     'git:commit',

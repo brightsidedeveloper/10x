@@ -1,6 +1,6 @@
 /**
  * Single source for layout-related localStorage keys and defaults (workspaces rail, agent/terminal
- * split, diff/git-graph side panel). Used by shell components and Settings → Layout.
+ * split, side panel: diff / git history / source control). Used by shell components and Settings → Layout.
  */
 
 export const LAYOUT_KEYS = {

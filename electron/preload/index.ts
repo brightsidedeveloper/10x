@@ -57,6 +57,17 @@ type GitOpenOriginResult = { ok: true } | { ok: false; error: string }
 
 type GitSimpleResult = { ok: true } | { ok: false; error: string }
 
+type GitStatusEntry = {
+  path: string
+  index: string
+  worktree: string
+  oldPath?: string
+}
+
+type GitStatusFilesResult =
+  | { ok: true; entries: GitStatusEntry[] }
+  | { ok: false; error: string }
+
 type GithubDeviceStart =
   | {
       ok: true
@@ -178,6 +189,15 @@ const api = {
       ipcRenderer.invoke('git:cleanupMergedMuxWorktree', cwd),
     init: (cwd: string): Promise<GitSimpleResult> => ipcRenderer.invoke('git:init', cwd),
     addAll: (cwd: string): Promise<GitSimpleResult> => ipcRenderer.invoke('git:addAll', cwd),
+    statusFiles: (cwd: string): Promise<GitStatusFilesResult> =>
+      ipcRenderer.invoke('git:statusFiles', cwd),
+    addPaths: (args: { cwd: string; paths: string[] }): Promise<GitSimpleResult> =>
+      ipcRenderer.invoke('git:addPaths', args),
+    resetPathsHead: (args: { cwd: string; paths: string[] }): Promise<GitSimpleResult> =>
+      ipcRenderer.invoke('git:resetPathsHead', args),
+    unstageAll: (cwd: string): Promise<GitSimpleResult> => ipcRenderer.invoke('git:unstageAll', cwd),
+    discardWorktreePath: (args: { cwd: string; path: string }): Promise<GitSimpleResult> =>
+      ipcRenderer.invoke('git:discardWorktreePath', args),
     commit: (args: { cwd: string; message: string }): Promise<GitSimpleResult> =>
       ipcRenderer.invoke('git:commit', args),
     push: (cwd: string): Promise<GitSimpleResult> => ipcRenderer.invoke('git:push', cwd),

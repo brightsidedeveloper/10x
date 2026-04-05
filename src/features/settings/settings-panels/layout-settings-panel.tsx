@@ -70,7 +70,7 @@ export function LayoutSettingsPanel(_props: SettingsPanelProps) {
             </dd>
           </div>
           <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-            <dt className="text-muted-foreground">Diff / Git graph side panel</dt>
+            <dt className="text-muted-foreground">Side panel (diff, history, source control)</dt>
             <dd className="font-mono text-xs text-foreground">
               {sidePanelWidthPx}px
               <span className="ml-2 font-sans text-muted-foreground">

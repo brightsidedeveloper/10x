@@ -10,7 +10,7 @@ const DEFAULT_WIDTH_PX = LAYOUT_DEFAULTS.sidePanelWidthPx
 const MIN_WIDTH_PX = LAYOUT_DEFAULTS.sidePanelMinPx
 const MAX_WIDTH_PX = LAYOUT_DEFAULTS.sidePanelMaxPx
 
-export type SidePanelId = 'diff' | 'git-graph'
+export type SidePanelId = 'diff' | 'git-graph' | 'git-scm'
 
 type SidePanelState = {
   /** Which side panel is visible; `null` means the column is hidden. */

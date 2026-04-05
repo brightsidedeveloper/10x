@@ -4,11 +4,13 @@ import { CenterRightSplit } from '@/features/shell/center-right-split'
 import { SplitSash } from '@/features/shell/split-sash'
 import { DiffViewerPanel } from '@/features/diff-panel/diff-viewer-panel'
 import { GitGraphPanel } from '@/features/git-graph/git-graph-panel'
+import { GitScmPanel } from '@/features/git-scm/git-scm-panel'
 import { SIDE_PANEL_WIDTH, useSidePanelStore, type SidePanelId } from '@/stores/side-panel-store'
 
 const PANEL_RENDERERS: Record<SidePanelId, FC> = {
   diff: DiffViewerPanel,
   'git-graph': GitGraphPanel,
+  'git-scm': GitScmPanel,
 }
 
 /**
