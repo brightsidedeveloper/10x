@@ -644,6 +644,38 @@ export function GitScmPanel() {
                 Publish to GitHub
               </Button>
             ) : null}
+            {summary?.hasOrigin && prFollowUpMenu?.kind === 'createPr' ? (
+              <Button
+                type="button"
+                className="w-full"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                title="Open compare view on GitHub to open a pull request"
+                onClick={() => {
+                  void window.mux.shell.openExternal(prFollowUpMenu.compareUrl).then((r) => {
+                    if (!r.ok) window.alert(r.error)
+                  })
+                }}
+              >
+                <GitPullRequestCreateArrow className="size-3.5" />
+                Create pull request
+              </Button>
+            ) : null}
+            {summary?.hasOrigin && prFollowUpMenu?.kind === 'deleteMerged' ? (
+              <Button
+                type="button"
+                className="w-full"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                title="Remove this agent worktree and delete the branch on origin if it still exists"
+                onClick={() => void runMergedBranchCleanup()}
+              >
+                <Trash2 className="size-3.5" />
+                Delete branch & remove worktree
+              </Button>
+            ) : null}
           </div>
         </>
       )}
