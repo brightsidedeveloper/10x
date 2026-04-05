@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 import type { DiffLine } from '@/features/diff-panel/parse-unified-diff'
 import type { SyntaxToken } from '@/features/diff-panel/use-diff-syntax-highlight'
 import { cn } from '@/lib/utils'
@@ -12,8 +14,8 @@ const ITALIC = 1
 const BOLD = 2
 const UNDERLINE = 4
 
-function tokenStyle(t: SyntaxToken): React.CSSProperties {
-  const s: React.CSSProperties = {}
+function tokenStyle(t: SyntaxToken): CSSProperties {
+  const s: CSSProperties = {}
   if (t.color) s.color = t.color
   if (t.fontStyle & ITALIC) s.fontStyle = 'italic'
   if (t.fontStyle & BOLD) s.fontWeight = 'bold'
@@ -118,6 +120,66 @@ export function DiffLineRow({ line, tokens }: Props) {
           tokens={tokens}
           rowClassName={cn(base, 'border-transparent text-foreground/90')}
         />
+      )
+  }
+}
+
+const splitBase =
+  'min-h-[1.375rem] border-l-2 pl-1.5 pr-2 py-px font-mono text-[11px] leading-relaxed tracking-tight min-w-0'
+
+/** One column in a side-by-side row; `null` = padded empty cell for alignment. */
+export function SplitDiffSideCell({
+  line,
+  tokens,
+}: {
+  line: DiffLine | null
+  tokens?: SyntaxToken[] | null
+}) {
+  if (line == null) {
+    return (
+      <div
+        className={cn(splitBase, 'border-transparent bg-muted/15')}
+        aria-hidden
+      />
+    )
+  }
+
+  switch (line.kind) {
+    case 'add':
+      return (
+        <GutteredCodeLine
+          line={line}
+          tokens={tokens}
+          rowClassName={cn(
+            splitBase,
+            'border-emerald-500/45 bg-emerald-500/[0.09] text-emerald-950 dark:border-emerald-400/35 dark:bg-emerald-500/10 dark:text-emerald-100',
+          )}
+        />
+      )
+    case 'remove':
+      return (
+        <GutteredCodeLine
+          line={line}
+          tokens={tokens}
+          rowClassName={cn(
+            splitBase,
+            'border-rose-500/45 bg-rose-500/[0.09] text-rose-950 dark:border-rose-400/35 dark:bg-rose-500/10 dark:text-rose-100',
+          )}
+        />
+      )
+    case 'context':
+      return (
+        <GutteredCodeLine
+          line={line}
+          tokens={tokens}
+          rowClassName={cn(splitBase, 'border-transparent text-foreground/90')}
+        />
+      )
+    default:
+      return (
+        <div className={cn(splitBase, 'break-all border-transparent text-muted-foreground/80')}>
+          {line.text}
+        </div>
       )
   }
 }

@@ -11,6 +11,7 @@ import { SplitSash } from '@/features/shell/split-sash'
 import { cn } from '@/lib/utils'
 import { useSidePanelStore } from '@/stores/side-panel-store'
 import { useGitFocusedCheckoutStore } from '@/stores/git-focused-checkout-store'
+import { useDiffViewModeStore } from '@/stores/diff-view-mode-store'
 import { GitBranch, Loader2, RefreshCw, X } from 'lucide-react'
 
 type LogCommit = {
@@ -30,6 +31,8 @@ export function GitGraphPanel() {
   const cwd = useGitCwdForVisibleWorkspace()
   const close = useSidePanelStore((s) => s.close)
   const loadState = useGitFocusedCheckoutStore((s) => s.loadState)
+  const diffViewMode = useDiffViewModeStore((s) => s.mode)
+  const setDiffViewMode = useDiffViewModeStore((s) => s.setMode)
 
   const [commits, setCommits] = useState<LogCommit[]>([])
   const [loading, setLoading] = useState(false)
@@ -356,10 +359,32 @@ export function GitGraphPanel() {
         />
 
         <div className="flex min-h-0 flex-col" style={sectionFlex(2)}>
-          <div className="shrink-0 border-b border-border/60 px-2 py-1">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-2 py-1">
             <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
               Diff
             </p>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Button
+                type="button"
+                variant={diffViewMode === 'unified' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-6 px-1.5 text-[10px]"
+                title="Unified diff"
+                onClick={() => setDiffViewMode('unified')}
+              >
+                Unified
+              </Button>
+              <Button
+                type="button"
+                variant={diffViewMode === 'split' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-6 px-1.5 text-[10px]"
+                title="Side by side"
+                onClick={() => setDiffViewMode('split')}
+              >
+                Split
+              </Button>
+            </div>
           </div>
           <ScrollArea className="min-h-0 flex-1">
             <div className="flex flex-col gap-3 p-2 pb-4">
@@ -379,7 +404,12 @@ export function GitGraphPanel() {
                 <p className="text-sm text-muted-foreground">No file changes in this commit.</p>
               )}
               {diffFiles.map((f, i) => (
-                <DiffFileBlock key={`${f.path}-${i}`} file={f} fileIndex={i} />
+                <DiffFileBlock
+                  key={`${f.path}-${i}`}
+                  file={f}
+                  fileIndex={i}
+                  viewMode={diffViewMode}
+                />
               ))}
             </div>
           </ScrollArea>

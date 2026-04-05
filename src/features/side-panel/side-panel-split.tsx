@@ -30,7 +30,7 @@ export function SidePanelSplit() {
       if (!el) return
       const rect = el.getBoundingClientRect()
       const w = clientX - rect.left
-      const maxW = Math.min(SIDE_PANEL_WIDTH.max, rect.width * 0.55)
+      const maxW = Math.min(SIDE_PANEL_WIDTH.max, rect.width * 0.88)
       const clampedMax = Math.max(SIDE_PANEL_WIDTH.min, maxW)
       setWidthPx(Math.min(clampedMax, Math.max(SIDE_PANEL_WIDTH.min, w)))
     },
@@ -97,7 +97,7 @@ export function SidePanelSplit() {
                 e.preventDefault()
                 const el = containerRef.current
                 const maxW = el
-                  ? Math.min(SIDE_PANEL_WIDTH.max, el.getBoundingClientRect().width * 0.55)
+                  ? Math.min(SIDE_PANEL_WIDTH.max, el.getBoundingClientRect().width * 0.88)
                   : SIDE_PANEL_WIDTH.max
                 const clampedMax = Math.max(SIDE_PANEL_WIDTH.min, maxW)
                 setWidthPx(Math.min(clampedMax, cur + step))

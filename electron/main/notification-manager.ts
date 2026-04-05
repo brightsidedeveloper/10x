@@ -168,10 +168,17 @@ interface SessionInfo {
    * another tab so a completion seen while focused does not re-surface as a dot later.
    */
   attentionDismissed: boolean
+  /**
+   * After answering a needs-input menu (often a single key with no `\r`), ignore `needs` in the
+   * PTY debouncer until this time so scrollback does not immediately force PENDING again.
+   */
+  suppressNeedsInputTransitionUntilMs: number
 }
 
 /** Milliseconds of PTY silence before we evaluate idle / needs-input state. */
 const QUIESCENCE_MS = 1500
+
+const NEEDS_INPUT_SUPPRESS_AFTER_RESPONSE_MS = QUIESCENCE_MS + 800
 
 const agentSessions = new Map<string, SessionInfo>()
 
@@ -336,6 +343,7 @@ export function registerAgentSession(sessionId: string, meta: RegisterAgentSessi
     hasReceivedInput: false,
     hasCompletedTurn: false,
     attentionDismissed: false,
+    suppressNeedsInputTransitionUntilMs: 0,
   })
   const created = agentSessions.get(sessionId)
   if (created) {
@@ -361,9 +369,14 @@ export function onAgentOutput(sessionId: string, data: string): void {
     const needs = needsInputFromBuffer(clean)
     const idle = looksIdleFromBuffer(clean)
 
+    const blockNeedsInputFromStaleRunning =
+      session.state === 'running' &&
+      session.suppressNeedsInputTransitionUntilMs > 0 &&
+      Date.now() < session.suppressNeedsInputTransitionUntilMs
+
     if (!session.hasReceivedInput && idle && !needs && session.state === 'running') {
       transitionToPreInteractionIdle(sessionId, session)
-    } else if (session.hasReceivedInput && needs) {
+    } else if (session.hasReceivedInput && needs && !blockNeedsInputFromStaleRunning) {
       transitionState(sessionId, session, 'needs-input')
     } else if (
       (session.state === 'idle' || session.state === 'needs-input') &&
@@ -395,13 +408,25 @@ export function onAgentInput(sessionId: string, userPayload: string): void {
   const firstUserBytes = !info.hasReceivedInput
   info.hasReceivedInput = true
 
-  if (info.state === 'idle' || info.state === 'needs-input') {
+  if (info.state === 'idle') {
     if (/[\r\n]/.test(userPayload)) {
       info.state = 'running'
       info.buffer = ''
       updateBadge()
       broadcastAgentState(sessionId, info)
     } else if (firstUserBytes) {
+      updateBadge()
+      broadcastAgentState(sessionId, info)
+    }
+    return
+  }
+
+  if (info.state === 'needs-input') {
+    /** Menus often accept a single key (1 / y) with no newline — still counts as submit. */
+    if (userPayload.length > 0) {
+      info.state = 'running'
+      info.buffer = ''
+      info.suppressNeedsInputTransitionUntilMs = Date.now() + NEEDS_INPUT_SUPPRESS_AFTER_RESPONSE_MS
       updateBadge()
       broadcastAgentState(sessionId, info)
     }

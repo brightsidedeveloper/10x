@@ -20,7 +20,8 @@ export const LAYOUT_DEFAULTS = {
   agentTerminalFractionMax: 0.78,
   sidePanelWidthPx: 360,
   sidePanelMinPx: 220,
-  sidePanelMaxPx: 720,
+  /** Upper cap for drag + persisted width (large monitors / split diff). */
+  sidePanelMaxPx: 2400,
 } as const
 
 /** Dispatched on window after persisted layout keys are cleared; shell splits reset live state. */

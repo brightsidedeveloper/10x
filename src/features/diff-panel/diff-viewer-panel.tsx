@@ -9,6 +9,7 @@ import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-vis
 import { cn } from '@/lib/utils'
 import { useSidePanelStore } from '@/stores/side-panel-store'
 import { useGitFocusedCheckoutStore } from '@/stores/git-focused-checkout-store'
+import { useDiffViewModeStore } from '@/stores/diff-view-mode-store'
 import { GitCompare, Loader2, RefreshCw, X } from 'lucide-react'
 
 function countDiffLines(file: { lines: { kind: string }[] }): { add: number; remove: number } {
@@ -33,6 +34,8 @@ export function DiffViewerPanel() {
   const cwd = useGitCwdForVisibleWorkspace()
   const close = useSidePanelStore((s) => s.close)
   const loadState = useGitFocusedCheckoutStore((s) => s.loadState)
+  const diffViewMode = useDiffViewModeStore((s) => s.mode)
+  const setDiffViewMode = useDiffViewModeStore((s) => s.setMode)
   const [mode, setMode] = useState<GitDiffMode>('all')
   const [text, setText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -141,7 +144,7 @@ export function DiffViewerPanel() {
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-1 border-b border-border/80 px-2 py-1.5">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/80 px-2 py-1.5">
         {(['all', 'unstaged', 'staged'] as const).map((m) => (
           <Button
             key={m}
@@ -157,6 +160,35 @@ export function DiffViewerPanel() {
             {MODE_LABEL[m]}
           </Button>
         ))}
+        <span
+          className="ml-auto hidden h-4 w-px shrink-0 bg-border sm:block"
+          aria-hidden
+        />
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-1 sm:ml-0 sm:w-auto">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            View
+          </span>
+          <Button
+            type="button"
+            variant={diffViewMode === 'unified' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={cn('h-7 px-2 text-xs', diffViewMode === 'unified' && 'shadow-sm')}
+            title="Single column with +/- lines"
+            onClick={() => setDiffViewMode('unified')}
+          >
+            Unified
+          </Button>
+          <Button
+            type="button"
+            variant={diffViewMode === 'split' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={cn('h-7 px-2 text-xs', diffViewMode === 'split' && 'shadow-sm')}
+            title="Original and modified side by side"
+            onClick={() => setDiffViewMode('split')}
+          >
+            Split
+          </Button>
+        </div>
       </div>
 
       {files.length > 1 && (
@@ -206,7 +238,12 @@ export function DiffViewerPanel() {
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           )}
           {files.map((f, i) => (
-            <DiffFileBlock key={`${f.path}-${i}`} file={f} fileIndex={i} />
+            <DiffFileBlock
+              key={`${f.path}-${i}`}
+              file={f}
+              fileIndex={i}
+              viewMode={diffViewMode}
+            />
           ))}
         </div>
       </ScrollArea>

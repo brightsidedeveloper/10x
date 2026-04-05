@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { DiffLineRow } from '@/features/diff-panel/diff-line-row'
+import { buildSplitDiffRows } from '@/features/diff-panel/build-split-diff-rows'
+import { DiffLineRow, SplitDiffSideCell } from '@/features/diff-panel/diff-line-row'
 import type { ParsedDiffFile } from '@/features/diff-panel/parse-unified-diff'
 import { useDiffSyntaxHighlight } from '@/features/diff-panel/use-diff-syntax-highlight'
+import type { DiffViewMode } from '@/stores/diff-view-mode-store'
 import { cn } from '@/lib/utils'
 import { Check, Copy, FileCode2 } from 'lucide-react'
 
@@ -12,11 +14,13 @@ type Props = {
   /** Anchor for scroll-into-view from the file strip. */
   fileIndex: number
   className?: string
+  viewMode: DiffViewMode
 }
 
-export function DiffFileBlock({ file, fileIndex, className }: Props) {
+export function DiffFileBlock({ file, fileIndex, className, viewMode }: Props) {
   const [copied, setCopied] = useState(false)
   const highlights = useDiffSyntaxHighlight(file)
+  const splitRows = useMemo(() => buildSplitDiffRows(file.lines), [file.lines])
 
   return (
     <section
@@ -47,11 +51,46 @@ export function DiffFileBlock({ file, fileIndex, className }: Props) {
           {copied ? <Check className="size-3" aria-hidden /> : <Copy className="size-3" aria-hidden />}
         </Button>
       </header>
-      <div className="min-w-0">
-        {file.lines.map((line, i) => (
-          <DiffLineRow key={i} line={line} tokens={highlights?.[i]} />
-        ))}
-      </div>
+
+      {viewMode === 'unified' ? (
+        <div className="min-w-0">
+          {file.lines.map((line, i) => (
+            <DiffLineRow key={i} line={line} tokens={highlights?.[i]} />
+          ))}
+        </div>
+      ) : (
+        <div className="min-w-0">
+          <div className="grid grid-cols-2 gap-px border-b border-border/70 bg-muted/45 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:bg-muted/30">
+            <div className="px-2 py-1">Original</div>
+            <div className="px-2 py-1">Modified</div>
+          </div>
+          <div className="min-w-0 overflow-x-auto">
+            {splitRows.map((row, ri) =>
+              row.kind === 'full' ? (
+                <DiffLineRow
+                  key={ri}
+                  line={row.line}
+                  tokens={highlights?.[row.index]}
+                />
+              ) : (
+                <div
+                  key={ri}
+                  className="grid min-w-0 grid-cols-2 divide-x divide-border/50 border-b border-border/25"
+                >
+                  <SplitDiffSideCell
+                    line={row.left?.line ?? null}
+                    tokens={row.left != null ? highlights?.[row.left.index] : undefined}
+                  />
+                  <SplitDiffSideCell
+                    line={row.right?.line ?? null}
+                    tokens={row.right != null ? highlights?.[row.right.index] : undefined}
+                  />
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
