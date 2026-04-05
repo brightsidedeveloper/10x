@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { ChevronDown, Plus, X } from 'lucide-react'
 
 import { useActiveWorkspace } from '@/features/workspaces/hooks/use-active-workspace'
 import { useVisibleWorkspaceId } from '@/features/workspaces/hooks/use-visible-workspace-id'
@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '@/stores/workspace-store'
 import { useAgentTabsStore } from '@/stores/agent-tabs-store'
 import { useAppWideTerminalsStore } from '@/stores/app-wide-terminals-store'
 import { useTerminalScopeStore, type TerminalScope } from '@/stores/terminal-scope-store'
+import { useTerminalPanelCollapseStore } from '@/stores/terminal-panel-collapse-store'
 import { useGlobalTerminalsStore } from '@/stores/global-terminals-store'
 import {
   useWorktreeTerminalsStore,
@@ -55,6 +56,7 @@ export function TerminalPanel() {
 
   const scopeByWorkspace = useTerminalScopeStore((s) => s.scopeByWorkspace)
   const setScopeInStore = useTerminalScopeStore((s) => s.setScope)
+  const collapseTerminalPanel = useTerminalPanelCollapseStore((s) => s.collapse)
 
   const noWorkspace = workspaces.length === 0
   const visibleId =
@@ -460,6 +462,17 @@ export function TerminalPanel() {
         ) : (
           <span className="text-[10px] text-foreground/60">—</span>
         )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="size-7 shrink-0 text-muted-foreground"
+          title="Collapse terminal panel (⌘J or Ctrl+J to show again)"
+          aria-label="Collapse terminal panel"
+          onClick={() => collapseTerminalPanel()}
+        >
+          <ChevronDown className="size-3.5" />
+        </Button>
       </div>
 
       {terminalScopeEffective === 'global' && appWideShells.length > 0 ? (

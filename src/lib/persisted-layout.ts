@@ -8,6 +8,7 @@ export const LAYOUT_KEYS = {
   agentTerminalSplit: 'mux.agentTerminalSplitFraction',
   sidePanel: 'mux.sidePanelWidthPx',
   sidePanelLegacy: 'mux.diffPanelWidthPx',
+  gitGraphPanelLayout: 'mux.gitGraphPanelLayout',
 } as const
 
 export const LAYOUT_DEFAULTS = {
@@ -54,6 +55,52 @@ export function readPersistedAgentTerminalFraction(): number {
     )
   } catch {
     return LAYOUT_DEFAULTS.agentTerminalFraction
+  }
+}
+
+/** Git History panel: three-section flex ratios + which panes are collapsed (like the terminal strip). */
+export type GitGraphPanelPersisted = {
+  fracs: [number, number, number]
+  collapsedCommit: boolean
+  collapsedDiff: boolean
+}
+
+/** Default flex ratios (same as former flex-1 : flex-[1.15] : flex-[1.25]). */
+export const GIT_GRAPH_PANEL_DEFAULT_FRACS: [number, number, number] = [
+  1 / 3.4,
+  1.15 / 3.4,
+  1.25 / 3.4,
+]
+
+const GIT_GRAPH_DEFAULT: GitGraphPanelPersisted = {
+  fracs: GIT_GRAPH_PANEL_DEFAULT_FRACS,
+  collapsedCommit: false,
+  collapsedDiff: false,
+}
+
+function isValidFracTriple(v: unknown): v is [number, number, number] {
+  if (!Array.isArray(v) || v.length !== 3) return false
+  const [a, b, c] = v
+  if (typeof a !== 'number' || typeof b !== 'number' || typeof c !== 'number') return false
+  if (![a, b, c].every((n) => Number.isFinite(n) && n > 0)) return false
+  const sum = a + b + c
+  return sum > 0.99 && sum < 1.01
+}
+
+export function readPersistedGitGraphPanelLayout(): GitGraphPanelPersisted {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEYS.gitGraphPanelLayout)
+    if (raw == null) return GIT_GRAPH_DEFAULT
+    const p = JSON.parse(raw) as Record<string, unknown>
+    const fracs = p.fracs
+    if (!isValidFracTriple(fracs)) return GIT_GRAPH_DEFAULT
+    return {
+      fracs,
+      collapsedCommit: p.collapsedCommit === true,
+      collapsedDiff: p.collapsedDiff === true,
+    }
+  } catch {
+    return GIT_GRAPH_DEFAULT
   }
 }
 

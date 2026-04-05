@@ -95,6 +95,16 @@ export function KeyboardShortcutsSettingsPanel(_props: SettingsPanelProps) {
               <>
                 <Kbd>{mod}</Kbd>
                 <span className="text-muted-foreground">+</span>
+                <Kbd>J</Kbd>
+              </>
+            }
+            detail="Show or hide the bottom terminal panel. The panel stays mounted so shells keep running while it is hidden."
+          />
+          <ShortcutRow
+            keys={
+              <>
+                <Kbd>{mod}</Kbd>
+                <span className="text-muted-foreground">+</span>
                 <Kbd>1</Kbd>
                 <span className="text-muted-foreground"> … </span>
                 <Kbd>9</Kbd>

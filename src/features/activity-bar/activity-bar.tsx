@@ -9,13 +9,16 @@ import { SettingsDialog } from '@/features/settings/settings-dialog'
 import { runWithStatusActivity } from '@/lib/status/run-with-status-activity'
 import { useGitFocusedCheckoutStore } from '@/stores/git-focused-checkout-store'
 import { useSidePanelStore } from '@/stores/side-panel-store'
-import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Settings } from 'lucide-react'
+import { useTerminalPanelCollapseStore } from '@/stores/terminal-panel-collapse-store'
+import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Settings, Terminal } from 'lucide-react'
 
 export function ActivityBar() {
   const active = useActiveWorkspace()
   const focusedAgentPath = useGitCwdForVisibleWorkspace()
   const activePanel = useSidePanelStore((s) => s.active)
   const toggleSidePanel = useSidePanelStore((s) => s.toggle)
+  const terminalCollapsed = useTerminalPanelCollapseStore((s) => s.collapsed)
+  const toggleTerminalPanel = useTerminalPanelCollapseStore((s) => s.toggle)
   const gitRepoReady = useGitFocusedCheckoutStore((s) => s.loadState.kind === 'ok')
   const gitLoadStateKind = useGitFocusedCheckoutStore((s) => s.loadState.kind)
   const [activeWorkspaceIsGitRepo, setActiveWorkspaceIsGitRepo] = useState<boolean | null>(null)
@@ -149,6 +152,18 @@ export function ActivityBar() {
             onClick={() => toggleSidePanel('git-graph')}
           >
             <GitGraph className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={activityBarIconButtonClass}
+            title="Toggle bottom terminal panel (⌘J or Ctrl+J)"
+            aria-label="Toggle terminal panel"
+            aria-pressed={!terminalCollapsed}
+            onClick={() => toggleTerminalPanel()}
+          >
+            <Terminal className="size-4" />
           </Button>
           <ActivityBarGitMenu />
         </div>
