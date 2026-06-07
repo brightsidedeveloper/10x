@@ -10,6 +10,11 @@ import type { IPty } from 'node-pty'
 import fixPath from 'fix-path'
 
 import {
+  buildClaudeExecCommand,
+  claudeCliArgv,
+  planClaudeSpawn,
+} from './claude-session-path'
+import {
   cleanupAgentSession,
   onAgentInput,
   onAgentOutput,
@@ -20,6 +25,9 @@ const require = createRequire(import.meta.url)
 const pty = require('node-pty') as typeof import('node-pty')
 
 const sessions = new Map<string, IPty>()
+
+/** When true, PTY exit events are not broadcast (app is quitting or bulk-killing sessions). */
+let suppressPtyExitBroadcast = false
 
 const pathSep = process.platform === 'win32' ? ';' : ':'
 
@@ -186,11 +194,24 @@ function ptyEnv(): Record<string, string> {
   return { ...cachedPtyEnv }
 }
 
+type ClaudeSpawnOpts = {
+  sessionId?: string
+}
+
 /**
  * Spawn `claude` like Terminal: real PATH/node from captured env, then exec via the user's shell
  * (avoids posix issues with the shim when env was wrong; safe when env is now right).
+ *
+ * When `sessionId` is a UUID, binds the tab to a stable Claude Code session (`--session-id` on
+ * first launch, `--resume` when a transcript already exists under ~/.claude/projects).
  */
-function spawnClaudePty(cwd: string, cols: number, rows: number, env: Record<string, string>): IPty {
+function spawnClaudePty(
+  cwd: string,
+  cols: number,
+  rows: number,
+  env: Record<string, string>,
+  claude?: ClaudeSpawnOpts,
+): IPty {
   const options = {
     name: 'xterm-256color' as const,
     cwd,
@@ -199,8 +220,13 @@ function spawnClaudePty(cwd: string, cols: number, rows: number, env: Record<str
     env,
   }
 
+  const plan = planClaudeSpawn({
+    cwd,
+    sessionId: claude?.sessionId,
+  })
+
   if (process.platform === 'win32') {
-    return pty.spawn('claude', [], options)
+    return pty.spawn('claude', claudeCliArgv(plan), options)
   }
 
   const shell =
@@ -215,7 +241,12 @@ function spawnClaudePty(cwd: string, cols: number, rows: number, env: Record<str
     throw new Error('No usable shell found for Claude sessions')
   }
 
-  return pty.spawn(shell.path, shellCommandArgs(shell, 'exec claude'), options)
+  const command =
+    plan.mode === 'default'
+      ? 'exec claude'
+      : buildClaudeExecCommand({ cwd, sessionId: plan.sessionId })
+
+  return pty.spawn(shell.path, shellCommandArgs(shell, command), options)
 }
 
 /** Interactive login shell — absolute binaries only (avoids spawnp lookup issues). */
@@ -261,6 +292,7 @@ function broadcast(channel: string, ...args: unknown[]) {
 }
 
 export function killAllPtySessions() {
+  suppressPtyExitBroadcast = true
   for (const proc of sessions.values()) {
     try {
       proc.kill()
@@ -283,6 +315,8 @@ export type PtyCreateOpts = {
   /** With `notificationAgent`, used for `workspace — agent — Complete|Needs input` */
   notificationWorkspace?: string
   notificationAgent?: string
+  /** Agent tab UUID — passed to Claude as `--session-id` / `--resume` for restart persistence. */
+  claudeSessionId?: string
 }
 
 /**
@@ -333,7 +367,11 @@ export function registerPtyIpc() {
 
       const env = ptyEnv()
       const proc =
-        kind === 'shell' ? spawnShellPty(cwd, cols, rows, env) : spawnClaudePty(cwd, cols, rows, env)
+        kind === 'shell'
+          ? spawnShellPty(cwd, cols, rows, env)
+          : spawnClaudePty(cwd, cols, rows, env, {
+              sessionId: opts.claudeSessionId,
+            })
 
       if (kind !== 'shell') {
         registerAgentSession(sessionId, {
@@ -351,7 +389,9 @@ export function registerPtyIpc() {
       proc.onExit(({ exitCode, signal }) => {
         sessions.delete(sessionId)
         if (kind !== 'shell') cleanupAgentSession(sessionId)
-        broadcast('pty:exit', { sessionId, exitCode, signal })
+        if (!suppressPtyExitBroadcast) {
+          broadcast('pty:exit', { sessionId, exitCode, signal })
+        }
       })
 
       sessions.set(sessionId, proc)

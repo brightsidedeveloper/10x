@@ -111,7 +111,14 @@ app.whenReady().then(() => {
   createWindow()
 })
 
+function broadcastAppWillQuit() {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('app:will-quit')
+  }
+}
+
 app.on('before-quit', () => {
+  broadcastAppWillQuit()
   killAllPtySessions()
 })
 

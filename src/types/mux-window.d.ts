@@ -3,6 +3,7 @@ declare global {
     mux: {
       app: {
         getHomeDir: () => Promise<string>
+        onWillQuit: (handler: () => void) => () => void
       }
       store: {
         getWorkspaces: () => Promise<{ id: string; path: string; label: string }[]>
@@ -211,6 +212,7 @@ declare global {
           label?: string
           notificationWorkspace?: string
           notificationAgent?: string
+          claudeSessionId?: string
         }) => Promise<{ ok: true } | { ok: false; error: string }>
         write: (sessionId: string, data: string) => void
         resize: (sessionId: string, cols: number, rows: number) => void

@@ -13,6 +13,7 @@ type PtyCreateOpts = {
   label?: string
   notificationWorkspace?: string
   notificationAgent?: string
+  claudeSessionId?: string
 }
 
 type PtyCreateResult =
@@ -145,6 +146,11 @@ type GitCommitInspectResult =
 const api = {
   app: {
     getHomeDir: (): Promise<string> => ipcRenderer.invoke('app:getHomeDir'),
+    onWillQuit: (handler: () => void): (() => void) => {
+      const listener = () => handler()
+      ipcRenderer.on('app:will-quit', listener)
+      return () => ipcRenderer.removeListener('app:will-quit', listener)
+    },
   },
   store: {
     getWorkspaces: (): Promise<WorkspaceEntry[]> =>

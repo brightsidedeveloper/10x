@@ -9,6 +9,7 @@ import { StatusBar } from '@/features/status-bar/status-bar'
 
 import { SidePanelSplit } from '@/features/side-panel/side-panel-split'
 import { AgentFocusedSessionBridge } from '@/features/shell/agent-focused-session-bridge'
+import { AppQuittingBridge } from '@/features/shell/app-quitting-bridge'
 import { ClaudeCodeCliProbeBridge } from '@/features/shell/claude-code-cli-probe-bridge'
 import { UpdateLaunchToastBridge } from '@/features/shell/update-launch-toast-bridge'
 import { RecentWorkspacePathsBridge } from '@/features/shell/recent-workspace-paths-bridge'
@@ -18,6 +19,7 @@ export function AppShell() {
   return (
     <>
       <RecentWorkspacePathsBridge />
+      <AppQuittingBridge />
       <ClaudeCodeCliProbeBridge />
       <AgentFocusedSessionBridge />
       <UpdateLaunchToastBridge />
