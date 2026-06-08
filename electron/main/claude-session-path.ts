@@ -59,17 +59,40 @@ function claudePermissionArgv(mode: ClaudePermissionMode | undefined): string[] 
   return ['--permission-mode', mode]
 }
 
+function buildClaudeCommand(
+  opts: {
+    cwd: string
+    sessionId?: string
+    permissionMode?: ClaudePermissionMode
+  },
+  useExec: boolean,
+): string {
+  const plan = planClaudeSpawn(opts)
+  const flag = claudePermissionFlag(opts.permissionMode)
+  const suffix = flag ? ` ${flag}` : ''
+  const prefix = useExec ? 'exec ' : ''
+  if (plan.mode === 'default') return `${prefix}claude${suffix}`
+  if (plan.mode === 'resume') {
+    return `${prefix}claude --resume ${shellSingleQuote(plan.sessionId)}${suffix}`
+  }
+  return `${prefix}claude --session-id ${shellSingleQuote(plan.sessionId)}${suffix}`
+}
+
 export function buildClaudeExecCommand(opts: {
   cwd: string
   sessionId?: string
   permissionMode?: ClaudePermissionMode
 }): string {
-  const plan = planClaudeSpawn(opts)
-  const flag = claudePermissionFlag(opts.permissionMode)
-  const suffix = flag ? ` ${flag}` : ''
-  if (plan.mode === 'default') return `exec claude${suffix}`
-  if (plan.mode === 'resume') return `exec claude --resume ${shellSingleQuote(plan.sessionId)}${suffix}`
-  return `exec claude --session-id ${shellSingleQuote(plan.sessionId)}${suffix}`
+  return buildClaudeCommand(opts, true)
+}
+
+/** Same as {@link buildClaudeExecCommand} without the `exec` prefix (e.g. Git Bash on Windows). */
+export function buildClaudeShellCommand(opts: {
+  cwd: string
+  sessionId?: string
+  permissionMode?: ClaudePermissionMode
+}): string {
+  return buildClaudeCommand(opts, false)
 }
 
 export type ClaudeSpawnPlan =

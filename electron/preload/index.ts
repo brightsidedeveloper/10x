@@ -4,6 +4,16 @@ type WorkspaceEntry = { id: string; path: string; label: string }
 
 type ClaudePermissionMode = 'auto' | 'acceptEdits' | 'plan' | 'default'
 
+type TerminalShellPreference =
+  | 'default'
+  | 'git-bash'
+  | 'powershell'
+  | 'pwsh'
+  | 'cmd'
+  | 'zsh'
+  | 'bash'
+  | 'fish'
+
 type PersistedAgentTab = { id: string; label: string; agentPath?: string }
 
 type PtyCreateOpts = {
@@ -182,6 +192,24 @@ const api = {
       ipcRenderer.invoke('shell:openPathInOsFinder', fullPath),
     openInCursor: (folderPath: string): Promise<ShellResult> =>
       ipcRenderer.invoke('shell:openInCursor', folderPath),
+    getTerminalPreference: (): Promise<TerminalShellPreference> =>
+      ipcRenderer.invoke('shell:get-terminal-preference'),
+    setTerminalPreference: (
+      preference: TerminalShellPreference,
+    ): Promise<{ ok: boolean; preference: TerminalShellPreference }> =>
+      ipcRenderer.invoke('shell:set-terminal-preference', preference),
+    listTerminalShellOptions: (): Promise<{
+      preference: TerminalShellPreference
+      resolvedPath: string | null
+      resolvedLabel: string | null
+      options: Array<{
+        id: TerminalShellPreference
+        label: string
+        description: string
+        available: boolean
+        resolvedPath: string | null
+      }>
+    }> => ipcRenderer.invoke('shell:list-terminal-shell-options'),
   },
   git: {
     openOriginInBrowser: (cwd: string): Promise<GitOpenOriginResult> =>

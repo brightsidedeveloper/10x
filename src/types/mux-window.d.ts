@@ -1,4 +1,8 @@
 import type { ClaudePermissionMode } from '@/lib/claude-permission-mode'
+import type {
+  TerminalShellOptionsSnapshot,
+  TerminalShellPreference,
+} from '@/lib/terminal-shell-preference'
 
 declare global {
   interface Window {
@@ -27,6 +31,11 @@ declare global {
         openExternal: (url: string) => Promise<{ ok: true } | { ok: false; error: string }>
         openPathInOsFinder: (fullPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
         openInCursor: (folderPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+        getTerminalPreference: () => Promise<TerminalShellPreference>
+        setTerminalPreference: (
+          preference: TerminalShellPreference,
+        ) => Promise<{ ok: boolean; preference: TerminalShellPreference }>
+        listTerminalShellOptions: () => Promise<TerminalShellOptionsSnapshot>
       }
       git: {
         openOriginInBrowser: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>

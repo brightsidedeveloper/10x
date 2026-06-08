@@ -5,6 +5,11 @@ import {
   isClaudePermissionMode,
   type ClaudePermissionMode,
 } from './claude-session-path'
+import {
+  defaultTerminalShellPreference,
+  isTerminalShellPreference,
+  type TerminalShellPreference,
+} from './terminal-shell'
 
 export type WorkspaceEntry = { id: string; path: string; label: string }
 
@@ -28,6 +33,8 @@ export type TenxStoreSchema = {
   agentNotificationPrefs: AgentNotificationPrefs
   /** Autonomy level new Claude sessions launch with (`--permission-mode`). */
   claudePermissionMode: ClaudePermissionMode
+  /** Preferred shell for new terminal tabs (and Claude on Windows when POSIX). */
+  terminalShellPreference: TerminalShellPreference
 }
 
 export const DEFAULT_AGENT_NOTIFICATION_PREFS: AgentNotificationPrefs = {
@@ -41,6 +48,7 @@ export const tenxStore = new Store<TenxStoreSchema>({
     agentTabsByWorkspace: {},
     agentNotificationPrefs: { ...DEFAULT_AGENT_NOTIFICATION_PREFS },
     claudePermissionMode: DEFAULT_CLAUDE_PERMISSION_MODE,
+    terminalShellPreference: defaultTerminalShellPreference(),
   },
 })
 
@@ -80,5 +88,20 @@ export function readClaudePermissionMode(): ClaudePermissionMode {
 export function writeClaudePermissionMode(mode: ClaudePermissionMode): ClaudePermissionMode {
   const normalized = isClaudePermissionMode(mode) ? mode : DEFAULT_CLAUDE_PERMISSION_MODE
   tenxStore.set('claudePermissionMode', normalized)
+  return normalized
+}
+
+export function readTerminalShellPreference(): TerminalShellPreference {
+  const raw = tenxStore.get('terminalShellPreference') as unknown
+  return isTerminalShellPreference(raw) ? raw : defaultTerminalShellPreference()
+}
+
+export function writeTerminalShellPreference(
+  preference: TerminalShellPreference,
+): TerminalShellPreference {
+  const normalized = isTerminalShellPreference(preference)
+    ? preference
+    : defaultTerminalShellPreference()
+  tenxStore.set('terminalShellPreference', normalized)
   return normalized
 }

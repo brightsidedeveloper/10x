@@ -3,6 +3,10 @@ import type { IpcMainInvokeEvent } from 'electron'
 import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 
+import { clearPtyEnvCache } from './pty-manager'
+import { readTerminalShellPreference, writeTerminalShellPreference } from './persisted-store'
+import { isTerminalShellPreference, listTerminalShellOptions } from './terminal-shell'
+
 type OkOrErr = { ok: true } | { ok: false; error: string }
 
 const NEITHER_EDITOR_CLI_MSG =
@@ -98,5 +102,27 @@ export function registerShellIpc() {
     }
 
     return { ok: false, error: NEITHER_EDITOR_CLI_MSG }
+  })
+
+  ipcMain.handle('shell:get-terminal-preference', () => readTerminalShellPreference())
+
+  ipcMain.handle('shell:set-terminal-preference', (_e: IpcMainInvokeEvent, payload: unknown) => {
+    if (!isTerminalShellPreference(payload)) {
+      return { ok: false as const, preference: readTerminalShellPreference() }
+    }
+    const preference = writeTerminalShellPreference(payload)
+    clearPtyEnvCache()
+    return { ok: true as const, preference }
+  })
+
+  ipcMain.handle('shell:list-terminal-shell-options', () => {
+    const preference = readTerminalShellPreference()
+    const { resolved, options } = listTerminalShellOptions(preference)
+    return {
+      preference,
+      resolvedPath: resolved?.path ?? null,
+      resolvedLabel: resolved?.label ?? null,
+      options,
+    }
   })
 }

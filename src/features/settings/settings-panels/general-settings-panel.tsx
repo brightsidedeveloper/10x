@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Check, Loader2, RefreshCw } from 'lucide-react'
 
 import type { SettingsPanelProps } from '@/features/settings/settings-sections'
 import { FRIENDLY_UPDATER_BUILD_IN_PROGRESS_MESSAGE } from '@/features/updater/updater-messages'
 import { Button } from '@/components/ui/button'
+import type {
+  TerminalShellOptionsSnapshot,
+  TerminalShellPreference,
+} from '@/lib/terminal-shell-preference'
 import { cn } from '@/lib/utils'
 
 type UpdatePhase =
@@ -19,10 +23,46 @@ type UpdatePhase =
 export function GeneralSettingsPanel(_props: SettingsPanelProps) {
   const [version, setVersion] = useState<string | null>(null)
   const [phase, setPhase] = useState<UpdatePhase>({ kind: 'idle' })
+  const [shellSnapshot, setShellSnapshot] = useState<TerminalShellOptionsSnapshot | null>(null)
+  const [shellLoadError, setShellLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     void window.mux.updater.getAppVersion().then(setVersion)
   }, [])
+
+  const loadShellOptions = useCallback(async () => {
+    try {
+      const snapshot = await window.mux.shell.listTerminalShellOptions()
+      setShellSnapshot(snapshot)
+      setShellLoadError(null)
+    } catch {
+      setShellLoadError('Could not load terminal shell settings.')
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadShellOptions()
+  }, [loadShellOptions])
+
+  const persistShellPreference = useCallback(
+    async (next: TerminalShellPreference) => {
+      const prev = shellSnapshot?.preference
+      if (shellSnapshot) {
+        setShellSnapshot({ ...shellSnapshot, preference: next })
+      }
+      const r = await window.mux.shell.setTerminalPreference(next)
+      if (!r.ok) {
+        setShellLoadError('Could not save terminal shell settings.')
+        if (prev != null && shellSnapshot) {
+          setShellSnapshot({ ...shellSnapshot, preference: prev })
+        }
+        return
+      }
+      setShellLoadError(null)
+      await loadShellOptions()
+    },
+    [loadShellOptions, shellSnapshot],
+  )
 
   useEffect(() => {
     const unProgress = window.mux.updater.onDownloadProgress((p) => {
@@ -87,7 +127,9 @@ export function GeneralSettingsPanel(_props: SettingsPanelProps) {
     <div className="space-y-5">
       <div>
         <h2 className="text-sm font-semibold text-foreground">General</h2>
-        <p className="mt-1 text-sm text-muted-foreground">App version and updates.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          App version, updates, and the shell used for new terminal tabs.
+        </p>
       </div>
 
       <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
@@ -150,6 +192,77 @@ export function GeneralSettingsPanel(_props: SettingsPanelProps) {
           {phase.kind === 'error' && phase.message}
           {phase.kind === 'readyToInstall' && 'Update downloaded. Restart to finish installing.'}
         </p>
+      </div>
+
+      <div className="space-y-2 border-t border-border pt-5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Terminal shell
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Shell used when opening new terminal tabs. Existing tabs keep their current shell.
+        </p>
+
+        {shellLoadError != null && (
+          <p className="text-sm text-destructive" role="alert">
+            {shellLoadError}
+          </p>
+        )}
+
+        {shellSnapshot == null && shellLoadError == null && (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
+
+        {shellSnapshot != null && (
+          <>
+            {shellSnapshot.resolvedPath != null && (
+              <p className="font-mono text-xs text-muted-foreground">
+                Active: {shellSnapshot.resolvedLabel ?? 'Shell'} — {shellSnapshot.resolvedPath}
+              </p>
+            )}
+            <div className="space-y-2" role="radiogroup" aria-label="Terminal shell">
+              {shellSnapshot.options.map((option) => {
+                const active = shellSnapshot.preference === option.id
+                const disabled = !option.available
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={disabled}
+                    className={cn(
+                      'flex w-full items-start justify-between gap-4 rounded-lg border px-4 py-3 text-left transition-colors',
+                      disabled && 'cursor-not-allowed opacity-50',
+                      !disabled && active && 'border-primary bg-primary/10',
+                      !disabled &&
+                        !active &&
+                        'border-border bg-card/40 hover:bg-muted/60',
+                    )}
+                    onClick={() => {
+                      if (!disabled) void persistShellPreference(option.id)
+                    }}
+                  >
+                    <div className="min-w-0 space-y-0.5 pr-2">
+                      <p className="text-sm font-medium text-foreground">{option.label}</p>
+                      <p className="text-xs text-muted-foreground">{option.description}</p>
+                      {option.resolvedPath != null && (
+                        <p className="truncate font-mono text-[11px] text-muted-foreground/80">
+                          {option.resolvedPath}
+                        </p>
+                      )}
+                      {disabled && (
+                        <p className="text-xs text-muted-foreground">Not installed on this machine.</p>
+                      )}
+                    </div>
+                    {active && (
+                      <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
