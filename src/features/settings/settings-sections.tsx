@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, Github, Keyboard, PanelLeft, Settings } from 'lucide-react'
+import { Bell, Github, Keyboard, PanelLeft, Palette, Settings } from 'lucide-react'
 
+import { AppearanceSettingsPanel } from '@/features/settings/settings-panels/appearance-settings-panel'
 import { GeneralSettingsPanel } from '@/features/settings/settings-panels/general-settings-panel'
 import { GithubSettingsPanel } from '@/features/settings/settings-panels/github-settings-panel'
 import { KeyboardShortcutsSettingsPanel } from '@/features/settings/settings-panels/keyboard-shortcuts-settings-panel'
 import { LayoutSettingsPanel } from '@/features/settings/settings-panels/layout-settings-panel'
 import { NotificationsSettingsPanel } from '@/features/settings/settings-panels/notifications-settings-panel'
 
-export type SettingsSectionId = 'general' | 'notifications' | 'layout' | 'github' | 'keyboard'
+export type SettingsSectionId = 'general' | 'appearance' | 'notifications' | 'layout' | 'github' | 'keyboard'
 
 export type SettingsPanelProps = {
   /** Visible workspace checkout (Git menu / publish target). */
@@ -27,6 +28,7 @@ export type SettingsSectionDefinition = {
  */
 export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
   { id: 'general', label: 'General', icon: Settings, Panel: GeneralSettingsPanel },
+  { id: 'appearance', label: 'Appearance', icon: Palette, Panel: AppearanceSettingsPanel },
   {
     id: 'notifications',
     label: 'Notifications',

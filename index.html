@@ -4,6 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>10x Agentic Workspace</title>
+    <script>
+      ;(function () {
+        try {
+          var raw = localStorage.getItem('mux.theme')
+          if (!raw) {
+            document.documentElement.classList.add('dark')
+            document.documentElement.dataset.accent = 'neutral'
+            return
+          }
+          var t = JSON.parse(raw)
+          var mode = t.colorMode === 'light' || t.colorMode === 'dark' || t.colorMode === 'system' ? t.colorMode : 'dark'
+          var accent =
+            t.accent === 'neutral' ||
+            t.accent === 'blue' ||
+            t.accent === 'violet' ||
+            t.accent === 'green' ||
+            t.accent === 'orange' ||
+            t.accent === 'rose'
+              ? t.accent
+              : 'neutral'
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+          document.documentElement.dataset.accent = accent
+        } catch (e) {
+          document.documentElement.classList.add('dark')
+          document.documentElement.dataset.accent = 'neutral'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
