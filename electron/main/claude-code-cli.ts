@@ -78,27 +78,13 @@ export function claudeCodeInstallInfo(): {
   }
 
   const shell = resolveTerminalShell(readTerminalShellPreference()) ?? resolveWindowsDefault()
-  if (shell.kind === 'posix') {
-    return {
-      command: CLAUDE_CODE_INSTALL_FROM_GIT_BASH_COMMAND,
-      kind: 'windows-powershell',
-      shellLabel: shell.label,
-      isWindows: true,
-    }
-  }
-  if (shell.kind === 'cmd') {
-    return {
-      command:
-        'curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd',
-      kind: 'windows-cmd',
-      shellLabel: 'Command Prompt',
-      isWindows: true,
-    }
-  }
+  const runsInPowerShell = shell.kind === 'powershell' || shell.kind === 'pwsh'
   return {
-    command: CLAUDE_CODE_INSTALL_POWERSHELL_COMMAND,
+    command: runsInPowerShell
+      ? CLAUDE_CODE_INSTALL_POWERSHELL_COMMAND
+      : CLAUDE_CODE_INSTALL_FROM_GIT_BASH_COMMAND,
     kind: 'windows-powershell',
-    shellLabel: shell.label,
+    shellLabel: runsInPowerShell ? shell.label : 'PowerShell',
     isWindows: true,
   }
 }

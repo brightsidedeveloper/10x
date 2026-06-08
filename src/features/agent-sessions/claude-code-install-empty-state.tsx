@@ -28,45 +28,22 @@ export function ClaudeCodeInstallEmptyState({ workspaceId }: ClaudeCodeInstallEm
         <p className="text-sm font-medium text-foreground">Install Claude Code</p>
         <p className="text-sm text-muted-foreground">
           Agent tabs need the <span className="font-medium text-foreground">claude</span> CLI. We’ll
-          open a <span className="font-medium text-foreground">global</span> terminal
-          {installInfo ? (
+          open a <span className="font-medium text-foreground">global</span> terminal and run the
+          official native installer
+          {installInfo?.isWindows ? (
             <>
               {' '}
-              (<span className="font-medium text-foreground">{installInfo.shellLabel}</span>)
+              via <span className="font-medium text-foreground">PowerShell</span>
             </>
-          ) : null}{' '}
-          and run the official native installer. When it finishes, use{' '}
-          <span className="font-medium">Check again</span>.
+          ) : null}
+          . When it finishes, use <span className="font-medium">Check again</span>.
         </p>
         {installInfo?.isWindows ? (
-          <div className="space-y-2 text-left text-xs text-muted-foreground">
-            {installInfo.kind === 'windows-powershell' &&
-            installInfo.shellLabel.toLowerCase().includes('bash') ? (
-              <p>
-                On native Windows, the installer runs via{' '}
-                <span className="font-medium text-foreground">PowerShell</span> even when your
-                terminal is Git Bash (<code className="font-mono">install.sh</code> is for macOS,
-                Linux, and WSL only).
-              </p>
-            ) : null}
-            <p>
-              <span className="font-medium text-foreground">Git for Windows</span> is recommended on
-              native Windows so Claude Code can use the Bash tool. Without it, Claude Code uses
-              PowerShell for shell tools instead. WSL setups do not need Git for Windows.
-            </p>
-            <p>
-              If install fails:{' '}
-              <span className="font-medium text-foreground">
-                The token &apos;&amp;&amp;&apos; is not a valid statement separator
-              </span>{' '}
-              means you’re in PowerShell, not CMD — change the shell in Settings → General, or run
-              the PowerShell installer.{' '}
-              <span className="font-medium text-foreground">
-                &apos;irm&apos; is not recognized
-              </span>{' '}
-              means you’re in CMD, not PowerShell — switch to PowerShell or Git Bash.
-            </p>
-          </div>
+          <p className="text-left text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Git for Windows</span> is optional but
+            recommended so Claude Code can use the Bash tool. Without it, Claude Code uses PowerShell
+            for shell tools instead.
+          </p>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">

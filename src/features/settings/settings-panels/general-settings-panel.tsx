@@ -222,25 +222,19 @@ export function GeneralSettingsPanel(_props: SettingsPanelProps) {
             <div className="space-y-2" role="radiogroup" aria-label="Terminal shell">
               {shellSnapshot.options.map((option) => {
                 const active = shellSnapshot.preference === option.id
-                const disabled = !option.available
                 return (
                   <button
                     key={option.id}
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    disabled={disabled}
                     className={cn(
                       'flex w-full items-start justify-between gap-4 rounded-lg border px-4 py-3 text-left transition-colors',
-                      disabled && 'cursor-not-allowed opacity-50',
-                      !disabled && active && 'border-primary bg-primary/10',
-                      !disabled &&
-                        !active &&
-                        'border-border bg-card/40 hover:bg-muted/60',
+                      active
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-card/40 hover:bg-muted/60',
                     )}
-                    onClick={() => {
-                      if (!disabled) void persistShellPreference(option.id)
-                    }}
+                    onClick={() => void persistShellPreference(option.id)}
                   >
                     <div className="min-w-0 space-y-0.5 pr-2">
                       <p className="text-sm font-medium text-foreground">{option.label}</p>
@@ -249,9 +243,6 @@ export function GeneralSettingsPanel(_props: SettingsPanelProps) {
                         <p className="truncate font-mono text-[11px] text-muted-foreground/80">
                           {option.resolvedPath}
                         </p>
-                      )}
-                      {disabled && (
-                        <p className="text-xs text-muted-foreground">Not installed on this machine.</p>
                       )}
                     </div>
                     {active && (

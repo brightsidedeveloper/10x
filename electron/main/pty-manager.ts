@@ -12,7 +12,6 @@ import fixPath from 'fix-path'
 import {
   buildClaudeExecCommand,
   buildClaudeShellCommand,
-  claudeCliArgv,
   planClaudeSpawn,
 } from './claude-session-path'
 import {
@@ -23,9 +22,11 @@ import {
 } from './notification-manager'
 import { readClaudePermissionMode, readTerminalShellPreference } from './persisted-store'
 import {
+  claudePowerShellSpawnArgs,
   interactiveShellArgs,
   resolveTerminalShell,
   resolveWindowsDefault,
+  resolveWindowsPowerShellForClaude,
   shellCommandArgs,
   type ResolvedTerminalShell,
 } from './terminal-shell'
@@ -129,6 +130,47 @@ function mergePath(a: string, b: string): string {
   return [...new Set([...a.split(pathSep), ...b.split(pathSep)].filter(Boolean))].join(pathSep)
 }
 
+/** Native Windows installer puts `claude.exe` here; ensure GUI-spawned PTYs can find it. */
+function ensureWindowsClaudePath(env: Record<string, string>): Record<string, string> {
+  if (process.platform !== 'win32') return env
+  const home = env.USERPROFILE || env.HOME || os.homedir()
+  const localBin = path.join(home, '.local', 'bin')
+  const merged = mergePath(env.Path ?? env.PATH ?? '', localBin)
+  return { ...env, PATH: merged, Path: merged }
+}
+
+function captureWindowsPowerShellEnv(): Record<string, string> | null {
+  const shell = resolveWindowsPowerShellForClaude()
+  if (shell.kind === 'cmd') return null
+  try {
+    const out = execFileSync(
+      shell.path,
+      [
+        '-NoLogo',
+        '-Command',
+        'Get-ChildItem Env: | ForEach-Object { "{0}={1}" -f $_.Name, $_.Value }',
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 25_000,
+        maxBuffer: 10 * 1024 * 1024,
+        windowsHide: true,
+      },
+    )
+    const parsed = parsePrintenv(out.replace(/\r\n/g, '\n'))
+    const pathValue = parsed.Path ?? parsed.PATH ?? ''
+    if (!pathValue.trim()) return null
+    const mergedPath = mergePath(pathValue, process.env.Path ?? process.env.PATH ?? '')
+    return coerceStringEnv({
+      ...parsed,
+      PATH: mergedPath,
+      Path: mergedPath,
+    })
+  } catch {
+    return null
+  }
+}
+
 /** Only what the login shell needs to find your home + run `printenv`. */
 function minimalEnvForShellProbe(shell: string): NodeJS.ProcessEnv {
   const u = os.userInfo()
@@ -190,35 +232,16 @@ function loginShellPathFallback(): string {
 function captureTerminalLikeEnv(): Record<string, string> {
   if (process.platform === 'win32') {
     fixPath()
-    const resolved = resolveTerminalShell(readTerminalShellPreference())
-    if (resolved?.kind === 'posix') {
-      try {
-        const out = execFileSync(resolved.path, shellCommandArgs(resolved, 'printenv'), {
-          encoding: 'utf8',
-          timeout: 25_000,
-          maxBuffer: 10 * 1024 * 1024,
-          windowsHide: true,
-        })
-        const parsed = parsePrintenv(out)
-        if (parsed.PATH?.trim() || parsed.Path?.trim()) {
-          const mergedPath = mergePath(
-            parsed.PATH ?? parsed.Path ?? '',
-            process.env.Path ?? process.env.PATH ?? '',
-          )
-          return coerceStringEnv({
-            ...parsed,
-            PATH: mergedPath,
-            Path: mergedPath,
-          })
-        }
-      } catch {
-        /* fall through */
-      }
+    const captured = captureWindowsPowerShellEnv()
+    if (captured) {
+      return ensureWindowsClaudePath(captured)
     }
-    return coerceStringEnv({
-      ...process.env,
-      Path: mergePath(process.env.Path ?? '', process.env.PATH ?? ''),
-    } as Record<string, string | undefined>)
+    return ensureWindowsClaudePath(
+      coerceStringEnv({
+        ...process.env,
+        Path: mergePath(process.env.Path ?? '', process.env.PATH ?? ''),
+      } as Record<string, string | undefined>),
+    )
   }
 
   const shell = shellForEnvProbe() ?? preferredPosixShell()
@@ -295,15 +318,15 @@ function spawnClaudePty(
   const permissionMode = readClaudePermissionMode()
 
   if (process.platform === 'win32') {
-    const shell = resolveInteractiveShell(env)
-    if (shell.kind === 'posix') {
-      const command =
-        plan.mode === 'default'
-          ? buildClaudeShellCommand({ cwd, permissionMode })
-          : buildClaudeShellCommand({ cwd, sessionId: plan.sessionId, permissionMode })
-      return pty.spawn(shell.path, shellCommandArgs(shell, command), options)
-    }
-    return pty.spawn('claude', claudeCliArgv(plan, permissionMode), options)
+    const shell = resolveWindowsPowerShellForClaude()
+    const command =
+      plan.mode === 'default'
+        ? buildClaudeShellCommand({ cwd, permissionMode })
+        : buildClaudeShellCommand({ cwd, sessionId: plan.sessionId, permissionMode })
+    return pty.spawn(shell.path, claudePowerShellSpawnArgs(command), {
+      ...options,
+      env: ensureWindowsClaudePath(env),
+    })
   }
 
   const shell = resolveInteractiveShell(env)

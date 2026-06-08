@@ -86,7 +86,7 @@ export function buildClaudeExecCommand(opts: {
   return buildClaudeCommand(opts, true)
 }
 
-/** Same as {@link buildClaudeExecCommand} without the `exec` prefix (e.g. Git Bash on Windows). */
+/** Same as {@link buildClaudeExecCommand} without the `exec` prefix (e.g. PowerShell on Windows). */
 export function buildClaudeShellCommand(opts: {
   cwd: string
   sessionId?: string

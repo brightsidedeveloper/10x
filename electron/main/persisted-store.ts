@@ -11,6 +11,7 @@ import {
   type UiColorMode,
 } from './native-chrome-theme'
 import {
+  coerceTerminalShellPreference,
   defaultTerminalShellPreference,
   isTerminalShellPreference,
   type TerminalShellPreference,
@@ -101,7 +102,12 @@ export function writeClaudePermissionMode(mode: ClaudePermissionMode): ClaudePer
 
 export function readTerminalShellPreference(): TerminalShellPreference {
   const raw = tenxStore.get('terminalShellPreference') as unknown
-  return isTerminalShellPreference(raw) ? raw : defaultTerminalShellPreference()
+  const preference = isTerminalShellPreference(raw) ? raw : defaultTerminalShellPreference()
+  const coerced = coerceTerminalShellPreference(preference)
+  if (coerced !== preference) {
+    tenxStore.set('terminalShellPreference', coerced)
+  }
+  return coerced
 }
 
 export function writeTerminalShellPreference(

@@ -178,11 +178,46 @@ function resolveWindowsNonPosixFallback(): ResolvedTerminalShell {
 }
 
 export function resolveWindowsDefault(): ResolvedTerminalShell {
-  const gitBash = detectGitBashPath()
-  if (gitBash) {
-    return { path: gitBash, kind: 'posix', posixKind: 'bash', label: 'Git Bash' }
+  return resolveWindowsNonPosixFallback()
+}
+
+/** PowerShell used to launch Claude Code on native Windows (installer + PATH are PowerShell-oriented). */
+export function resolveWindowsPowerShellForClaude(): ResolvedTerminalShell {
+  const pwsh = detectPwshPath()
+  if (pwsh) {
+    return { path: pwsh, kind: 'pwsh', label: 'PowerShell 7+' }
+  }
+  const powershell = detectPowerShellPath()
+  if (powershell) {
+    return { path: powershell, kind: 'powershell', label: 'PowerShell' }
   }
   return resolveWindowsNonPosixFallback()
+}
+
+/** Spawn argv for an interactive Claude session inside PowerShell on Windows. */
+export function claudePowerShellSpawnArgs(command: string): string[] {
+  return ['-NoLogo', '-Command', command]
+}
+
+/** Drop stored preferences for shells that are not installed on this machine. */
+export function coerceTerminalShellPreference(
+  preference: TerminalShellPreference,
+): TerminalShellPreference {
+  if (preference === 'default') return 'default'
+  if (process.platform === 'win32') {
+    if (preference === 'git-bash' && !detectGitBashPath()) return 'default'
+    if (preference === 'pwsh' && !detectPwshPath()) return 'default'
+    return preference
+  }
+  if (
+    preference === 'git-bash' ||
+    preference === 'powershell' ||
+    preference === 'pwsh' ||
+    preference === 'cmd'
+  ) {
+    return 'default'
+  }
+  return resolvePosixByPreference(preference) ? preference : 'default'
 }
 
 function resolveWindowsByPreference(preference: TerminalShellPreference): ResolvedTerminalShell | null {
@@ -250,39 +285,41 @@ export function listTerminalShellOptions(
     const defs: Array<{ id: TerminalShellPreference; label: string; description: string }> = [
       {
         id: 'default',
-        label: 'Automatic',
-        description: 'Git Bash when installed, otherwise PowerShell.',
+        label: 'System default',
+        description: 'PowerShell on Windows (Command Prompt if PowerShell is unavailable).',
       },
-      { id: 'git-bash', label: 'Git Bash', description: 'Recommended for Git and Unix-style tooling.' },
-      { id: 'pwsh', label: 'PowerShell 7+', description: 'Modern PowerShell if installed.' },
+      { id: 'git-bash', label: 'Git Bash', description: 'Optional — for Git and Unix-style tooling.' },
+      { id: 'pwsh', label: 'PowerShell 7+', description: 'Optional — modern PowerShell when installed.' },
       { id: 'powershell', label: 'PowerShell', description: 'Windows PowerShell 5.x.' },
       { id: 'cmd', label: 'Command Prompt', description: 'Classic cmd.exe.' },
     ]
-    const options = defs.map((d) => {
-      let available = true
-      let resolvedPath: string | null = null
-      if (d.id === 'default') {
-        resolvedPath = resolveWindowsDefault().path
-      } else if (d.id === 'git-bash') {
-        resolvedPath = detectGitBashPath()
-        available = resolvedPath != null
-      } else if (d.id === 'pwsh') {
-        resolvedPath = detectPwshPath()
-        available = resolvedPath != null
-      } else if (d.id === 'powershell') {
-        resolvedPath = detectPowerShellPath()
-        available = resolvedPath != null
-      } else if (d.id === 'cmd') {
-        resolvedPath = detectCmdPath()
-      }
-      return {
-        id: d.id,
-        label: d.label,
-        description: d.description,
-        available,
-        resolvedPath,
-      }
-    })
+    const options = defs
+      .map((d) => {
+        let available = true
+        let resolvedPath: string | null = null
+        if (d.id === 'default') {
+          resolvedPath = resolveWindowsDefault().path
+        } else if (d.id === 'git-bash') {
+          resolvedPath = detectGitBashPath()
+          available = resolvedPath != null
+        } else if (d.id === 'pwsh') {
+          resolvedPath = detectPwshPath()
+          available = resolvedPath != null
+        } else if (d.id === 'powershell') {
+          resolvedPath = detectPowerShellPath()
+          available = resolvedPath != null
+        } else if (d.id === 'cmd') {
+          resolvedPath = detectCmdPath()
+        }
+        return {
+          id: d.id,
+          label: d.label,
+          description: d.description,
+          available,
+          resolvedPath,
+        }
+      })
+      .filter((option) => option.available)
     const resolved = resolveTerminalShell(preference)
     return { preference, resolved, options }
   }
@@ -293,30 +330,32 @@ export function listTerminalShellOptions(
       label: 'System default',
       description: 'Uses $SHELL from your environment.',
     },
-    { id: 'zsh', label: 'zsh', description: 'Force zsh for new terminal tabs.' },
-    { id: 'bash', label: 'bash', description: 'Force bash for new terminal tabs.' },
-    { id: 'fish', label: 'fish', description: 'Force fish for new terminal tabs.' },
+    { id: 'zsh', label: 'zsh', description: 'Optional — use zsh when installed.' },
+    { id: 'bash', label: 'bash', description: 'Optional — use bash when installed.' },
+    { id: 'fish', label: 'fish', description: 'Optional — use fish when installed.' },
   ]
-  const options = defs.map((d) => {
-    if (d.id === 'default') {
-      const shellPath = process.env.SHELL
+  const options = defs
+    .map((d) => {
+      if (d.id === 'default') {
+        const shellPath = process.env.SHELL
+        return {
+          id: d.id,
+          label: d.label,
+          description: d.description,
+          available: true,
+          resolvedPath: shellPath && existsSync(shellPath) ? shellPath : null,
+        }
+      }
+      const resolved = resolvePosixByPreference(d.id)
       return {
         id: d.id,
         label: d.label,
         description: d.description,
-        available: true,
-        resolvedPath: shellPath && existsSync(shellPath) ? shellPath : null,
+        available: resolved != null,
+        resolvedPath: resolved?.path ?? null,
       }
-    }
-    const resolved = resolvePosixByPreference(d.id)
-    return {
-      id: d.id,
-      label: d.label,
-      description: d.description,
-      available: resolved != null,
-      resolvedPath: resolved?.path ?? null,
-    }
-  })
+    })
+    .filter((option) => option.available)
   const resolved = resolveTerminalShell(preference)
   return { preference, resolved, options }
 }
