@@ -6,6 +6,11 @@ import {
   type ClaudePermissionMode,
 } from './claude-session-path'
 import {
+  defaultUiColorMode,
+  isUiColorMode,
+  type UiColorMode,
+} from './native-chrome-theme'
+import {
   defaultTerminalShellPreference,
   isTerminalShellPreference,
   type TerminalShellPreference,
@@ -35,6 +40,8 @@ export type TenxStoreSchema = {
   claudePermissionMode: ClaudePermissionMode
   /** Preferred shell for new terminal tabs (and Claude on Windows when POSIX). */
   terminalShellPreference: TerminalShellPreference
+  /** Light/dark/system for native window chrome (title bar, menu bar). */
+  uiColorMode: UiColorMode
 }
 
 export const DEFAULT_AGENT_NOTIFICATION_PREFS: AgentNotificationPrefs = {
@@ -49,6 +56,7 @@ export const tenxStore = new Store<TenxStoreSchema>({
     agentNotificationPrefs: { ...DEFAULT_AGENT_NOTIFICATION_PREFS },
     claudePermissionMode: DEFAULT_CLAUDE_PERMISSION_MODE,
     terminalShellPreference: defaultTerminalShellPreference(),
+    uiColorMode: defaultUiColorMode(),
   },
 })
 
@@ -103,5 +111,16 @@ export function writeTerminalShellPreference(
     ? preference
     : defaultTerminalShellPreference()
   tenxStore.set('terminalShellPreference', normalized)
+  return normalized
+}
+
+export function readUiColorMode(): UiColorMode {
+  const raw = tenxStore.get('uiColorMode') as unknown
+  return isUiColorMode(raw) ? raw : defaultUiColorMode()
+}
+
+export function writeUiColorMode(mode: UiColorMode): UiColorMode {
+  const normalized = isUiColorMode(mode) ? mode : defaultUiColorMode()
+  tenxStore.set('uiColorMode', normalized)
   return normalized
 }

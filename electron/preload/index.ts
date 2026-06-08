@@ -14,6 +14,8 @@ type TerminalShellPreference =
   | 'bash'
   | 'fish'
 
+type UiColorMode = 'light' | 'dark' | 'system'
+
 type PersistedAgentTab = { id: string; label: string; agentPath?: string }
 
 type PtyCreateOpts = {
@@ -170,6 +172,12 @@ const api = {
       ipcRenderer.on('app:will-quit', listener)
       return () => ipcRenderer.removeListener('app:will-quit', listener)
     },
+  },
+  theme: {
+    syncNativeChrome: (
+      colorMode: UiColorMode,
+    ): Promise<{ ok: boolean; colorMode: UiColorMode }> =>
+      ipcRenderer.invoke('theme:sync-native-chrome', colorMode),
   },
   store: {
     getWorkspaces: (): Promise<WorkspaceEntry[]> =>

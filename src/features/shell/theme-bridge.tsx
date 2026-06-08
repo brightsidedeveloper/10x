@@ -14,7 +14,10 @@ export function ThemeBridge() {
   useEffect(() => {
     if (colorMode !== 'system') return
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => hydrateFromDisk()
+    const onChange = () => {
+      hydrateFromDisk()
+      void window.mux.theme.syncNativeChrome('system')
+    }
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [colorMode, hydrateFromDisk])

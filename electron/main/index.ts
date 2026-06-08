@@ -10,6 +10,8 @@ import { loadEnvFromAppRoot } from './load-env'
 import { killAllPtySessions, registerPtyIpc } from './pty-manager'
 import { registerShellIpc } from './shell-ipc'
 import { registerAppIpc } from './app-ipc'
+import { applyNativeChromeTheme, windowBackgroundColor } from './native-chrome-theme'
+import { readUiColorMode } from './persisted-store'
 import { registerClaudeCodeCliIpc } from './claude-code-cli'
 import { registerUpdaterIpc } from './updater-ipc'
 import { tenxStore, type TenxStoreSchema } from './persisted-store'
@@ -41,18 +43,24 @@ const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 function createWindow() {
+  const colorMode = readUiColorMode()
+  applyNativeChromeTheme(colorMode)
+
   mainWindow = new BrowserWindow({
     title: '10x',
     width: 1280,
     height: 800,
     minWidth: 800,
     minHeight: 560,
+    backgroundColor: windowBackgroundColor(colorMode),
     webPreferences: {
       preload,
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
+
+  applyNativeChromeTheme(colorMode, mainWindow)
 
   if (VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL)

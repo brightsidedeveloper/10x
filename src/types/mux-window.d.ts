@@ -1,4 +1,5 @@
 import type { ClaudePermissionMode } from '@/lib/claude-permission-mode'
+import type { ColorMode } from '@/lib/persisted-theme'
 import type {
   TerminalShellOptionsSnapshot,
   TerminalShellPreference,
@@ -10,6 +11,11 @@ declare global {
       app: {
         getHomeDir: () => Promise<string>
         onWillQuit: (handler: () => void) => () => void
+      }
+      theme: {
+        syncNativeChrome: (
+          colorMode: ColorMode,
+        ) => Promise<{ ok: boolean; colorMode: ColorMode }>
       }
       store: {
         getWorkspaces: () => Promise<{ id: string; path: string; label: string }[]>

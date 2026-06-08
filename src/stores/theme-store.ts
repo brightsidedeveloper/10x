@@ -22,6 +22,10 @@ function syncDom(prefs: ThemePrefs): 'light' | 'dark' {
   return applyTheme(prefs)
 }
 
+function syncNativeChrome(colorMode: ColorMode): void {
+  void window.mux.theme.syncNativeChrome(colorMode)
+}
+
 export const useThemeStore = create<ThemeState>((set, get) => ({
   colorMode: readThemePrefs().colorMode,
   accent: readThemePrefs().accent,
@@ -30,12 +34,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   hydrateFromDisk: () => {
     const prefs = readThemePrefs()
     const resolvedScheme = syncDom(prefs)
+    syncNativeChrome(prefs.colorMode)
     set({ colorMode: prefs.colorMode, accent: prefs.accent, resolvedScheme })
   },
 
   setColorMode: (mode) => {
     const prefs = writeThemePrefs({ ...get(), colorMode: mode })
     const resolvedScheme = syncDom(prefs)
+    syncNativeChrome(prefs.colorMode)
     set({ colorMode: prefs.colorMode, resolvedScheme })
   },
 
