@@ -8,7 +8,6 @@ import { CloseAgentWorktreeDialog } from '@/features/git/close-agent-worktree-di
 import { WorktreeNameDialog } from '@/features/git/worktree-name-dialog'
 import { useVisibleWorkspaceId } from '@/features/workspaces/hooks/use-visible-workspace-id'
 import { useWorkspaceById } from '@/features/workspaces/hooks/use-workspace-by-id'
-import { runClaudeCodeInstallInGlobalTerminal } from '@/features/terminal-panel/run-claude-install-in-global-terminal'
 import { runWithStatusActivity } from '@/lib/status/run-with-status-activity'
 import type { AgentTab } from '@/stores/agent-tabs-store'
 import { useAgentTabCloseIntentStore } from '@/stores/agent-tab-close-intent-store'
@@ -25,6 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { GitBranchPlus, Plus, X } from 'lucide-react'
 
+import { ClaudeCodeInstallEmptyState } from './claude-code-install-empty-state'
 import { ClaudeSessionPane } from './claude-session-pane'
 import { EditableAgentTabLabel } from './editable-agent-tab-label'
 import { TabIdProvider } from './tab-id-context'
@@ -226,30 +226,7 @@ export function AgentSessionsPanel() {
         claudeInstalled === null ? (
           <p className="text-sm text-muted-foreground">Checking for Claude Code…</p>
         ) : (
-          <>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Install Claude Code</p>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Agent tabs need the <span className="font-medium text-foreground">claude</span> CLI. We’ll open a{' '}
-                <span className="font-medium text-foreground">global</span> terminal and run the official installer. When it finishes, use{' '}
-                <span className="font-medium">Check again</span>.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  runClaudeCodeInstallInGlobalTerminal(workspaceId)
-                }}
-              >
-                Install Claude Code
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => void useClaudeCodeCliStore.getState().refresh()}>
-                Check again
-              </Button>
-            </div>
-          </>
+          <ClaudeCodeInstallEmptyState workspaceId={workspaceId} />
         )
       ) : repoKind === 'git' ? (
         <>

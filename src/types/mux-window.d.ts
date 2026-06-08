@@ -1,4 +1,5 @@
 import type { ClaudePermissionMode } from '@/lib/claude-permission-mode'
+import type { ClaudeCodeInstallInfo } from '@/lib/claude-code-install'
 import type { ColorMode } from '@/lib/persisted-theme'
 import type {
   TerminalShellOptionsSnapshot,
@@ -225,6 +226,8 @@ declare global {
       claudeCode: {
         /** Resolves after probing PATH (and common install locations) from the main process. */
         isCliInstalled: () => Promise<boolean>
+        /** Official installer command for the user’s configured terminal shell. */
+        getInstallCommand: () => Promise<ClaudeCodeInstallInfo>
       }
       agent: {
         onStateChange: (

@@ -331,6 +331,12 @@ const api = {
   },
   claudeCode: {
     isCliInstalled: (): Promise<boolean> => ipcRenderer.invoke('claudeCode:isCliInstalled'),
+    getInstallCommand: (): Promise<{
+      command: string
+      kind: 'posix' | 'windows-powershell' | 'windows-cmd'
+      shellLabel: string
+      isWindows: boolean
+    }> => ipcRenderer.invoke('claudeCode:getInstallCommand'),
   },
   agent: {
     onStateChange: (

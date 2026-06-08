@@ -7,6 +7,9 @@ import { ipcMain } from 'electron'
 
 import fixPath from 'fix-path'
 
+import { readTerminalShellPreference } from './persisted-store'
+import { resolveTerminalShell, resolveWindowsDefault } from './terminal-shell'
+
 const PROBE_TIMEOUT_MS = 12_000
 
 /**
@@ -51,6 +54,50 @@ export function isClaudeCodeCliInstalled(): boolean {
   }
 }
 
+export type ClaudeCodeInstallKind = 'posix' | 'windows-powershell' | 'windows-cmd'
+
+export function claudeCodeInstallInfo(): {
+  command: string
+  kind: ClaudeCodeInstallKind
+  shellLabel: string
+  isWindows: boolean
+} {
+  if (process.platform !== 'win32') {
+    return {
+      command: 'curl -fsSL https://claude.ai/install.sh | bash',
+      kind: 'posix',
+      shellLabel: 'bash',
+      isWindows: false,
+    }
+  }
+
+  const shell = resolveTerminalShell(readTerminalShellPreference()) ?? resolveWindowsDefault()
+  if (shell.kind === 'posix') {
+    return {
+      command: 'curl -fsSL https://claude.ai/install.sh | bash',
+      kind: 'posix',
+      shellLabel: shell.label,
+      isWindows: true,
+    }
+  }
+  if (shell.kind === 'cmd') {
+    return {
+      command:
+        'curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd',
+      kind: 'windows-cmd',
+      shellLabel: 'Command Prompt',
+      isWindows: true,
+    }
+  }
+  return {
+    command: 'irm https://claude.ai/install.ps1 | iex',
+    kind: 'windows-powershell',
+    shellLabel: shell.label,
+    isWindows: true,
+  }
+}
+
 export function registerClaudeCodeCliIpc() {
   ipcMain.handle('claudeCode:isCliInstalled', () => isClaudeCodeCliInstalled())
+  ipcMain.handle('claudeCode:getInstallCommand', () => claudeCodeInstallInfo())
 }
