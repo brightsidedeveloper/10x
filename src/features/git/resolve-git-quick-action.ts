@@ -10,6 +10,7 @@ export type GitQuickActionKind =
   | 'commit'
   | 'push'
   | 'createPr'
+  | 'mergePr'
   | 'deleteMergedBranch'
 
 type Wt =
@@ -55,6 +56,10 @@ export function resolveGitQuickAction(
   }
   if (muxWorktreeFollowUp?.kind === 'createPr') {
     if (s.isMuxWorktree && !s.isOriginDefaultBranch) return 'createPr'
+    return 'fetch'
+  }
+  if (muxWorktreeFollowUp?.kind === 'mergePr') {
+    if (s.isMuxWorktree && !s.isOriginDefaultBranch) return 'mergePr'
     return 'fetch'
   }
   return 'fetch'

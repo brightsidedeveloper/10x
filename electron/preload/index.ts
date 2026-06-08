@@ -99,7 +99,14 @@ type ShellResult = { ok: true } | { ok: false; error: string }
 
 type GithubCreatePrContext =
   | { applicable: false }
-  | { applicable: true; hasOpenPr: boolean; hasMergedPr: boolean; compareUrl: string }
+  | {
+      applicable: true
+      hasOpenPr: boolean
+      hasMergedPr: boolean
+      compareUrl: string
+      openPrNumber: number | null
+      canMerge: boolean
+    }
 
 type UpdaterCheckResult =
   | { ok: true; isPackaged: false; currentVersion: string }
@@ -271,6 +278,20 @@ const api = {
     openDeviceHelp: (): Promise<{ ok: true }> => ipcRenderer.invoke('github:openDeviceHelp'),
     getCreatePrContext: (cwd: string): Promise<GithubCreatePrContext> =>
       ipcRenderer.invoke('github:getCreatePrContext', cwd),
+    getCreatePrDraft: (
+      cwd: string,
+    ): Promise<
+      | { ok: false }
+      | { ok: true; title: string; body: string; baseBranch: string; headBranch: string; compareUrl: string }
+    > => ipcRenderer.invoke('github:getCreatePrDraft', cwd),
+    createPr: (args: {
+      cwd: string
+      title: string
+      body: string
+    }): Promise<{ ok: true; html_url: string; number: number } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('github:createPr', args),
+    mergePr: (cwd: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('github:mergePr', cwd),
   },
   claudeCode: {
     isCliInstalled: (): Promise<boolean> => ipcRenderer.invoke('claudeCode:isCliInstalled'),

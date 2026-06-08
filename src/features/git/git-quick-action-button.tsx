@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { CreatePrDialog } from '@/features/git/create-pr-dialog'
 import { GitCommitMessageDialog } from '@/features/git/git-commit-message-dialog'
 import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-visible-workspace'
 import { normalizeGitCwdKey } from '@/features/git/normalize-git-cwd'
@@ -17,6 +18,7 @@ import {
   ArrowUpFromLine,
   GitBranchPlus,
   GitCommitHorizontal,
+  GitMerge,
   GitPullRequestCreateArrow,
   Github,
   Loader2,
@@ -34,6 +36,7 @@ const LABEL: Record<GitQuickActionKind, string> = {
   commit: 'Commit',
   push: 'Push',
   createPr: 'Create PR',
+  mergePr: 'Merge PR',
   deleteMergedBranch: 'Delete branch',
 }
 
@@ -60,6 +63,7 @@ export function GitQuickActionButton({ className }: Props) {
 
   const [commitOpen, setCommitOpen] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [createPrOpen, setCreatePrOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const commitNonce = useCommandPaletteIntentsStore((s) => s.commitNonce)
   const publishNonce = useCommandPaletteIntentsStore((s) => s.publishNonce)
@@ -112,6 +116,8 @@ export function GitQuickActionButton({ className }: Props) {
       <Github className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'createPr' ? (
       <GitPullRequestCreateArrow className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
+    ) : action === 'mergePr' ? (
+      <GitMerge className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'deleteMergedBranch' ? (
       <Trash2 className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'pull' ? (
@@ -152,12 +158,25 @@ export function GitQuickActionButton({ className }: Props) {
         break
       case 'createPr': {
         if (effectiveMuxFollowUp?.kind !== 'createPr') return
-        const url = effectiveMuxFollowUp.compareUrl
-        void runWithStatusActivity({ domain: 'github', label: 'Opening pull request', detail: url }, async () => {
-          const r = await window.mux.shell.openExternal(url)
-          if (!r.ok) window.alert(r.error)
-          return r
-        })
+        setCreatePrOpen(true)
+        break
+      }
+      case 'mergePr': {
+        if (effectiveMuxFollowUp?.kind !== 'mergePr') return
+        const prNumber = effectiveMuxFollowUp.prNumber
+        if (!window.confirm(`Squash and merge PR #${prNumber} into the default branch on GitHub?`)) {
+          return
+        }
+        const mergeCwd = cwd
+        void runWithStatusActivity(
+          { domain: 'github', label: `Merging PR #${prNumber}`, detail: mergeCwd },
+          async () => {
+            const r = await window.mux.github.mergePr(mergeCwd)
+            if (!r.ok) window.alert(r.error)
+            else await refreshFocusedCheckoutGit()
+            return r
+          },
+        )
         break
       }
       case 'deleteMergedBranch': {
@@ -215,6 +234,16 @@ export function GitQuickActionButton({ className }: Props) {
         onOpenChange={setPublishOpen}
         gitCwd={cwd}
         onPublished={() => {
+          void refreshFocusedCheckoutGit()
+        }}
+      />
+
+      <CreatePrDialog
+        open={createPrOpen}
+        onOpenChange={setCreatePrOpen}
+        cwd={cwd}
+        compareUrl={effectiveMuxFollowUp?.kind === 'createPr' ? effectiveMuxFollowUp.compareUrl : null}
+        onCreated={() => {
           void refreshFocusedCheckoutGit()
         }}
       />
