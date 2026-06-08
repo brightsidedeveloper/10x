@@ -2,9 +2,9 @@
  * Renderer-side mirror of the main process `ClaudePermissionMode` (electron/main/claude-session-path.ts).
  * Each value maps 1:1 to the Claude Code CLI's `--permission-mode`; `'default'` adds no flag.
  */
-export type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
+export type ClaudePermissionMode = 'auto' | 'acceptEdits' | 'plan' | 'default'
 
-export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'acceptEdits'
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'auto'
 
 export type ClaudePermissionModeOption = {
   mode: ClaudePermissionMode
@@ -12,13 +12,13 @@ export type ClaudePermissionModeOption = {
   description: string
 }
 
-/** Display order for the Settings picker — most autonomous first. */
+/** Display order for the Settings picker. */
 export const CLAUDE_PERMISSION_MODE_OPTIONS: readonly ClaudePermissionModeOption[] = [
   {
-    mode: 'bypassPermissions',
-    title: 'Bypass all',
+    mode: 'auto',
+    title: 'Auto',
     description:
-      'Claude never pauses for approval — it runs edits and shell commands on its own. Fully hands-off, with no safety gate.',
+      'Claude works on its own, auto-approving routine actions and only pausing for ones that are genuinely risky. The recommended hands-off default.',
   },
   {
     mode: 'acceptEdits',

@@ -31,16 +31,16 @@ export function shellSingleQuote(value: string): string {
 
 /**
  * How much autonomy a Claude session launches with. Maps 1:1 to the CLI's `--permission-mode`
- * values; `'default'` adds no flag (Claude prompts as usual). `'bypassPermissions'` is the
- * "automode" default — Claude never pauses for approval.
+ * values; `'default'` adds no flag (Claude prompts as usual). `'auto'` is the "automode" default —
+ * Claude works on its own and only pauses for genuinely risky actions.
  */
-export type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
+export type ClaudePermissionMode = 'auto' | 'acceptEdits' | 'plan' | 'default'
 
-export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'acceptEdits'
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'auto'
 
 export function isClaudePermissionMode(value: unknown): value is ClaudePermissionMode {
   return (
-    value === 'bypassPermissions' ||
+    value === 'auto' ||
     value === 'acceptEdits' ||
     value === 'plan' ||
     value === 'default'

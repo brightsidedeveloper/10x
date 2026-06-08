@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 type WorkspaceEntry = { id: string; path: string; label: string }
 
-type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
+type ClaudePermissionMode = 'auto' | 'acceptEdits' | 'plan' | 'default'
 
 type PersistedAgentTab = { id: string; label: string; agentPath?: string }
 
