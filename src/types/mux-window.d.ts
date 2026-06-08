@@ -1,3 +1,5 @@
+import type { ClaudePermissionMode } from '@/lib/claude-permission-mode'
+
 declare global {
   interface Window {
     mux: {
@@ -212,6 +214,11 @@ declare global {
           | { ok: true; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
           | { ok: false; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
         >
+        /** Autonomy level new Claude sessions launch with (`--permission-mode`). */
+        getPermissionMode: () => Promise<ClaudePermissionMode>
+        setPermissionMode: (
+          mode: ClaudePermissionMode,
+        ) => Promise<{ ok: boolean; mode: ClaudePermissionMode }>
       }
       pty: {
         create: (opts: {

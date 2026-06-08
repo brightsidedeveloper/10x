@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 type WorkspaceEntry = { id: string; path: string; label: string }
 
+type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
+
 type PersistedAgentTab = { id: string; label: string; agentPath?: string }
 
 type PtyCreateOpts = {
@@ -312,6 +314,12 @@ const api = {
       | { ok: true; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
       | { ok: false; prefs: { pushEnabled: boolean; soundEnabled: boolean } }
     > => ipcRenderer.invoke('agent:set-notification-prefs', prefs),
+    getPermissionMode: (): Promise<ClaudePermissionMode> =>
+      ipcRenderer.invoke('agent:get-permission-mode'),
+    setPermissionMode: (
+      mode: ClaudePermissionMode,
+    ): Promise<{ ok: boolean; mode: ClaudePermissionMode }> =>
+      ipcRenderer.invoke('agent:set-permission-mode', mode),
     onNavigateToSession: (
       handler: (payload: { sessionId: string }) => void,
     ): (() => void) => {

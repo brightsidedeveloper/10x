@@ -29,14 +29,47 @@ export function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
+/**
+ * How much autonomy a Claude session launches with. Maps 1:1 to the CLI's `--permission-mode`
+ * values; `'default'` adds no flag (Claude prompts as usual). `'bypassPermissions'` is the
+ * "automode" default — Claude never pauses for approval.
+ */
+export type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
+
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'bypassPermissions'
+
+export function isClaudePermissionMode(value: unknown): value is ClaudePermissionMode {
+  return (
+    value === 'bypassPermissions' ||
+    value === 'acceptEdits' ||
+    value === 'plan' ||
+    value === 'default'
+  )
+}
+
+/** Trailing `--permission-mode <mode>` for shell exec, or `''` for the prompting default. */
+function claudePermissionFlag(mode: ClaudePermissionMode | undefined): string {
+  if (mode == null || mode === 'default') return ''
+  return `--permission-mode ${mode}`
+}
+
+/** argv form of {@link claudePermissionFlag} for `pty.spawn('claude', args)`. */
+function claudePermissionArgv(mode: ClaudePermissionMode | undefined): string[] {
+  if (mode == null || mode === 'default') return []
+  return ['--permission-mode', mode]
+}
+
 export function buildClaudeExecCommand(opts: {
   cwd: string
-  sessionId: string
+  sessionId?: string
+  permissionMode?: ClaudePermissionMode
 }): string {
   const plan = planClaudeSpawn(opts)
-  if (plan.mode === 'default') return 'exec claude'
-  if (plan.mode === 'resume') return `exec claude --resume ${shellSingleQuote(plan.sessionId)}`
-  return `exec claude --session-id ${shellSingleQuote(plan.sessionId)}`
+  const flag = claudePermissionFlag(opts.permissionMode)
+  const suffix = flag ? ` ${flag}` : ''
+  if (plan.mode === 'default') return `exec claude${suffix}`
+  if (plan.mode === 'resume') return `exec claude --resume ${shellSingleQuote(plan.sessionId)}${suffix}`
+  return `exec claude --session-id ${shellSingleQuote(plan.sessionId)}${suffix}`
 }
 
 export type ClaudeSpawnPlan =
@@ -59,8 +92,12 @@ export function planClaudeSpawn(opts: {
 }
 
 /** argv for `pty.spawn('claude', args)` on Windows. */
-export function claudeCliArgv(plan: ClaudeSpawnPlan): string[] {
-  if (plan.mode === 'default') return []
-  if (plan.mode === 'resume') return ['--resume', plan.sessionId]
-  return ['--session-id', plan.sessionId]
+export function claudeCliArgv(plan: ClaudeSpawnPlan, permissionMode?: ClaudePermissionMode): string[] {
+  const base =
+    plan.mode === 'default'
+      ? []
+      : plan.mode === 'resume'
+        ? ['--resume', plan.sessionId]
+        : ['--session-id', plan.sessionId]
+  return [...base, ...claudePermissionArgv(permissionMode)]
 }
