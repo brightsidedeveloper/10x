@@ -20,6 +20,7 @@ import {
   onAgentOutput,
   registerAgentSession,
 } from './notification-manager'
+import { readClaudePermissionMode } from './persisted-store'
 
 const require = createRequire(import.meta.url)
 const pty = require('node-pty') as typeof import('node-pty')
@@ -224,9 +225,10 @@ function spawnClaudePty(
     cwd,
     sessionId: claude?.sessionId,
   })
+  const permissionMode = readClaudePermissionMode()
 
   if (process.platform === 'win32') {
-    return pty.spawn('claude', claudeCliArgv(plan), options)
+    return pty.spawn('claude', claudeCliArgv(plan, permissionMode), options)
   }
 
   const shell =
@@ -243,8 +245,8 @@ function spawnClaudePty(
 
   const command =
     plan.mode === 'default'
-      ? 'exec claude'
-      : buildClaudeExecCommand({ cwd, sessionId: plan.sessionId })
+      ? buildClaudeExecCommand({ cwd, permissionMode })
+      : buildClaudeExecCommand({ cwd, sessionId: plan.sessionId, permissionMode })
 
   return pty.spawn(shell.path, shellCommandArgs(shell, command), options)
 }

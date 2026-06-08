@@ -1,5 +1,11 @@
 import Store from 'electron-store'
 
+import {
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  isClaudePermissionMode,
+  type ClaudePermissionMode,
+} from './claude-session-path'
+
 export type WorkspaceEntry = { id: string; path: string; label: string }
 
 export type PersistedAgentTab = { id: string; label: string; agentPath?: string }
@@ -20,6 +26,8 @@ export type TenxStoreSchema = {
   /** Agent tab rows per workspace id (renderer-owned shape, validated on read). */
   agentTabsByWorkspace: Record<string, PersistedAgentBucket>
   agentNotificationPrefs: AgentNotificationPrefs
+  /** Autonomy level new Claude sessions launch with (`--permission-mode`). */
+  claudePermissionMode: ClaudePermissionMode
 }
 
 export const DEFAULT_AGENT_NOTIFICATION_PREFS: AgentNotificationPrefs = {
@@ -32,6 +40,7 @@ export const tenxStore = new Store<TenxStoreSchema>({
     workspaces: [],
     agentTabsByWorkspace: {},
     agentNotificationPrefs: { ...DEFAULT_AGENT_NOTIFICATION_PREFS },
+    claudePermissionMode: DEFAULT_CLAUDE_PERMISSION_MODE,
   },
 })
 
@@ -59,5 +68,17 @@ export function writeAgentNotificationPrefs(prefs: AgentNotificationPrefs): Agen
     soundEnabled: Boolean(prefs.soundEnabled),
   }
   tenxStore.set('agentNotificationPrefs', normalized)
+  return normalized
+}
+
+/** Persisted autonomy level; falls back to the default for missing/garbage values. */
+export function readClaudePermissionMode(): ClaudePermissionMode {
+  const raw = tenxStore.get('claudePermissionMode') as unknown
+  return isClaudePermissionMode(raw) ? raw : DEFAULT_CLAUDE_PERMISSION_MODE
+}
+
+export function writeClaudePermissionMode(mode: ClaudePermissionMode): ClaudePermissionMode {
+  const normalized = isClaudePermissionMode(mode) ? mode : DEFAULT_CLAUDE_PERMISSION_MODE
+  tenxStore.set('claudePermissionMode', normalized)
   return normalized
 }

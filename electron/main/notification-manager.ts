@@ -1,6 +1,12 @@
 import { BrowserWindow, Notification, app, ipcMain } from 'electron'
 
-import { readAgentNotificationPrefs, writeAgentNotificationPrefs } from './persisted-store'
+import {
+  readAgentNotificationPrefs,
+  readClaudePermissionMode,
+  writeAgentNotificationPrefs,
+  writeClaudePermissionMode,
+} from './persisted-store'
+import { isClaudePermissionMode } from './claude-session-path'
 
 // ─── IPC broadcast ────────────────────────────────────────────────────────────
 
@@ -507,5 +513,14 @@ export function registerAgentAttentionIpc(): void {
       soundEnabled: p.soundEnabled,
     })
     return { ok: true as const, prefs: saved }
+  })
+
+  ipcMain.handle('agent:get-permission-mode', () => readClaudePermissionMode())
+
+  ipcMain.handle('agent:set-permission-mode', (_event, payload: unknown) => {
+    if (!isClaudePermissionMode(payload)) {
+      return { ok: false as const, mode: readClaudePermissionMode() }
+    }
+    return { ok: true as const, mode: writeClaudePermissionMode(payload) }
   })
 }
