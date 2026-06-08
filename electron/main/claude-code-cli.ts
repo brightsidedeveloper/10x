@@ -56,6 +56,12 @@ export function isClaudeCodeCliInstalled(): boolean {
 
 export type ClaudeCodeInstallKind = 'posix' | 'windows-powershell' | 'windows-cmd'
 
+/** Native Windows Git Bash still uses the PowerShell installer (`install.sh` is macOS/Linux/WSL only). */
+const CLAUDE_CODE_INSTALL_POWERSHELL_COMMAND = 'irm https://claude.ai/install.ps1 | iex'
+
+const CLAUDE_CODE_INSTALL_FROM_GIT_BASH_COMMAND =
+  'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex"'
+
 export function claudeCodeInstallInfo(): {
   command: string
   kind: ClaudeCodeInstallKind
@@ -74,8 +80,8 @@ export function claudeCodeInstallInfo(): {
   const shell = resolveTerminalShell(readTerminalShellPreference()) ?? resolveWindowsDefault()
   if (shell.kind === 'posix') {
     return {
-      command: 'curl -fsSL https://claude.ai/install.sh | bash',
-      kind: 'posix',
+      command: CLAUDE_CODE_INSTALL_FROM_GIT_BASH_COMMAND,
+      kind: 'windows-powershell',
       shellLabel: shell.label,
       isWindows: true,
     }
@@ -90,7 +96,7 @@ export function claudeCodeInstallInfo(): {
     }
   }
   return {
-    command: 'irm https://claude.ai/install.ps1 | iex',
+    command: CLAUDE_CODE_INSTALL_POWERSHELL_COMMAND,
     kind: 'windows-powershell',
     shellLabel: shell.label,
     isWindows: true,

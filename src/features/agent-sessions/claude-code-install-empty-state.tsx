@@ -40,6 +40,15 @@ export function ClaudeCodeInstallEmptyState({ workspaceId }: ClaudeCodeInstallEm
         </p>
         {installInfo?.isWindows ? (
           <div className="space-y-2 text-left text-xs text-muted-foreground">
+            {installInfo.kind === 'windows-powershell' &&
+            installInfo.shellLabel.toLowerCase().includes('bash') ? (
+              <p>
+                On native Windows, the installer runs via{' '}
+                <span className="font-medium text-foreground">PowerShell</span> even when your
+                terminal is Git Bash (<code className="font-mono">install.sh</code> is for macOS,
+                Linux, and WSL only).
+              </p>
+            ) : null}
             <p>
               <span className="font-medium text-foreground">Git for Windows</span> is recommended on
               native Windows so Claude Code can use the Bash tool. Without it, Claude Code uses
