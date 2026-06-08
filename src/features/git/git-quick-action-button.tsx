@@ -17,6 +17,7 @@ import {
   ArrowUpFromLine,
   GitBranchPlus,
   GitCommitHorizontal,
+  GitMerge,
   GitPullRequestCreateArrow,
   Github,
   Loader2,
@@ -34,6 +35,7 @@ const LABEL: Record<GitQuickActionKind, string> = {
   commit: 'Commit',
   push: 'Push',
   createPr: 'Create PR',
+  mergePr: 'Merge PR',
   deleteMergedBranch: 'Delete branch',
 }
 
@@ -112,6 +114,8 @@ export function GitQuickActionButton({ className }: Props) {
       <Github className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'createPr' ? (
       <GitPullRequestCreateArrow className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
+    ) : action === 'mergePr' ? (
+      <GitMerge className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'deleteMergedBranch' ? (
       <Trash2 className={cn(iconSz, 'shrink-0 opacity-90')} aria-hidden />
     ) : action === 'pull' ? (
@@ -158,6 +162,24 @@ export function GitQuickActionButton({ className }: Props) {
           if (!r.ok) window.alert(r.error)
           return r
         })
+        break
+      }
+      case 'mergePr': {
+        if (effectiveMuxFollowUp?.kind !== 'mergePr') return
+        const prNumber = effectiveMuxFollowUp.prNumber
+        if (!window.confirm(`Squash and merge PR #${prNumber} into the default branch on GitHub?`)) {
+          return
+        }
+        const mergeCwd = cwd
+        void runWithStatusActivity(
+          { domain: 'github', label: `Merging PR #${prNumber}`, detail: mergeCwd },
+          async () => {
+            const r = await window.mux.github.mergePr(mergeCwd)
+            if (!r.ok) window.alert(r.error)
+            else await refreshFocusedCheckoutGit()
+            return r
+          },
+        )
         break
       }
       case 'deleteMergedBranch': {

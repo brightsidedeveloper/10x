@@ -140,7 +140,16 @@ async function githubApiGetJson<T>(
 
 export type GithubCreatePrContext =
   | { applicable: false }
-  | { applicable: true; hasOpenPr: boolean; hasMergedPr: boolean; compareUrl: string }
+  | {
+      applicable: true
+      hasOpenPr: boolean
+      hasMergedPr: boolean
+      compareUrl: string
+      /** Number of the open PR for this branch (when `hasOpenPr`), else null. */
+      openPrNumber: number | null
+      /** Whether the signed-in user has push/maintain/admin rights (can merge). */
+      canMerge: boolean
+    }
 
 export async function githubGetCreatePrContext(cwd: string): Promise<GithubCreatePrContext> {
   const b = await gitGithubCompareBasics(cwd.trim())
@@ -152,9 +161,17 @@ export async function githubGetCreatePrContext(cwd: string): Promise<GithubCreat
   const { owner, repo, branch } = b
 
   let defaultBranch = 'main'
-  const repoRes = await githubApiGetJson<{ default_branch?: string }>(`/repos/${owner}/${repo}`, token)
-  if (repoRes.ok && typeof repoRes.data.default_branch === 'string' && repoRes.data.default_branch) {
-    defaultBranch = repoRes.data.default_branch
+  let canMerge = false
+  const repoRes = await githubApiGetJson<{
+    default_branch?: string
+    permissions?: { push?: boolean; maintain?: boolean; admin?: boolean }
+  }>(`/repos/${owner}/${repo}`, token)
+  if (repoRes.ok) {
+    if (typeof repoRes.data.default_branch === 'string' && repoRes.data.default_branch) {
+      defaultBranch = repoRes.data.default_branch
+    }
+    const p = repoRes.data.permissions
+    canMerge = p != null && (p.push === true || p.maintain === true || p.admin === true)
   }
 
   if (branch === defaultBranch) {
@@ -166,12 +183,15 @@ export async function githubGetCreatePrContext(cwd: string): Promise<GithubCreat
   const headQ = encodeURIComponent(`${owner}:${branch}`)
 
   let hasOpenPr = false
-  const pullsOpen = await githubApiGetJson<{ merged_at?: string | null }[]>(
+  let openPrNumber: number | null = null
+  const pullsOpen = await githubApiGetJson<{ merged_at?: string | null; number?: number }[]>(
     `/repos/${owner}/${repo}/pulls?state=open&head=${headQ}`,
     token,
   )
-  if (pullsOpen.ok && Array.isArray(pullsOpen.data)) {
-    hasOpenPr = pullsOpen.data.length > 0
+  if (pullsOpen.ok && Array.isArray(pullsOpen.data) && pullsOpen.data.length > 0) {
+    hasOpenPr = true
+    const n = pullsOpen.data[0]?.number
+    openPrNumber = typeof n === 'number' ? n : null
   }
 
   let hasMergedPr = false
@@ -185,7 +205,58 @@ export async function githubGetCreatePrContext(cwd: string): Promise<GithubCreat
     }
   }
 
-  return { applicable: true, hasOpenPr, hasMergedPr, compareUrl }
+  return { applicable: true, hasOpenPr, hasMergedPr, compareUrl, openPrNumber, canMerge }
+}
+
+export type GithubMergePrResult = { ok: true } | { ok: false; error: string }
+
+/** Squash-merge the open PR for this worktree's branch into the repo's default branch. */
+export async function githubMergePr(cwd: string): Promise<GithubMergePrResult> {
+  const b = await gitGithubCompareBasics(cwd.trim())
+  if (b.kind !== 'ok') {
+    return { ok: false, error: 'This checkout is not a GitHub worktree.' }
+  }
+
+  const token = loadGithubToken()
+  if (!token) {
+    return { ok: false, error: 'Connect GitHub in Settings first.' }
+  }
+
+  const { owner, repo, branch } = b
+  const headQ = encodeURIComponent(`${owner}:${branch}`)
+
+  const pullsOpen = await githubApiGetJson<{ number?: number }[]>(
+    `/repos/${owner}/${repo}/pulls?state=open&head=${headQ}`,
+    token,
+  )
+  if (!pullsOpen.ok || !Array.isArray(pullsOpen.data) || pullsOpen.data.length === 0) {
+    return { ok: false, error: 'No open pull request found for this branch.' }
+  }
+  const number = pullsOpen.data[0]?.number
+  if (typeof number !== 'number') {
+    return { ok: false, error: 'Could not determine the pull request number.' }
+  }
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}/merge`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ merge_method: 'squash' }),
+  })
+  const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    const msg = raw.message != null ? String(raw.message) : `${res.status} ${res.statusText}`
+    return { ok: false, error: String(msg) }
+  }
+  if (raw.merged !== true) {
+    const msg = raw.message != null ? String(raw.message) : 'GitHub did not merge the pull request.'
+    return { ok: false, error: String(msg) }
+  }
+  return { ok: true }
 }
 
 async function fetchGithubUser(token: string): Promise<{ login: string } | null> {
@@ -471,5 +542,12 @@ export function registerGithubIpc() {
       return { applicable: false as const }
     }
     return githubGetCreatePrContext(rawCwd.trim())
+  })
+
+  ipcMain.handle('github:mergePr', async (_e: IpcMainInvokeEvent, rawCwd: unknown) => {
+    if (typeof rawCwd !== 'string' || !rawCwd.trim()) {
+      return { ok: false as const, error: 'Invalid path.' }
+    }
+    return githubMergePr(rawCwd.trim())
   })
 }

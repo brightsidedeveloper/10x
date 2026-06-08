@@ -97,7 +97,14 @@ type ShellResult = { ok: true } | { ok: false; error: string }
 
 type GithubCreatePrContext =
   | { applicable: false }
-  | { applicable: true; hasOpenPr: boolean; hasMergedPr: boolean; compareUrl: string }
+  | {
+      applicable: true
+      hasOpenPr: boolean
+      hasMergedPr: boolean
+      compareUrl: string
+      openPrNumber: number | null
+      canMerge: boolean
+    }
 
 type UpdaterCheckResult =
   | { ok: true; isPackaged: false; currentVersion: string }
@@ -269,6 +276,8 @@ const api = {
     openDeviceHelp: (): Promise<{ ok: true }> => ipcRenderer.invoke('github:openDeviceHelp'),
     getCreatePrContext: (cwd: string): Promise<GithubCreatePrContext> =>
       ipcRenderer.invoke('github:getCreatePrContext', cwd),
+    mergePr: (cwd: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('github:mergePr', cwd),
   },
   claudeCode: {
     isCliInstalled: (): Promise<boolean> => ipcRenderer.invoke('claudeCode:isCliInstalled'),

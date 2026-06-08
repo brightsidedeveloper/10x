@@ -17,6 +17,7 @@ export type GitFocusedCheckoutLoadState =
 
 export type MuxWorktreeGitHubFollowUp =
   | { kind: 'createPr'; compareUrl: string }
+  | { kind: 'mergePr'; prNumber: number }
   | { kind: 'deleteMergedBranch' }
 
 type GitFocusedCheckoutState = {
@@ -97,14 +98,18 @@ export const useGitFocusedCheckoutStore = create<GitFocusedCheckoutState>((set, 
     void window.mux.github.getCreatePrContext(cwd).then((ctx) => {
       if (normalizeGitCwdKey(get().focusCwd) !== cwdKey) return
       if (prSn !== createPrContextSerial) return
-      if (ctx.applicable && !ctx.hasOpenPr) {
-        if (ctx.hasMergedPr) {
-          set({ muxWorktreeFollowUp: { kind: 'deleteMergedBranch' } })
-        } else {
-          set({ muxWorktreeFollowUp: { kind: 'createPr', compareUrl: ctx.compareUrl } })
-        }
-      } else {
+      if (!ctx.applicable) {
         set({ muxWorktreeFollowUp: null })
+      } else if (ctx.hasOpenPr) {
+        if (ctx.canMerge && ctx.openPrNumber != null) {
+          set({ muxWorktreeFollowUp: { kind: 'mergePr', prNumber: ctx.openPrNumber } })
+        } else {
+          set({ muxWorktreeFollowUp: null })
+        }
+      } else if (ctx.hasMergedPr) {
+        set({ muxWorktreeFollowUp: { kind: 'deleteMergedBranch' } })
+      } else {
+        set({ muxWorktreeFollowUp: { kind: 'createPr', compareUrl: ctx.compareUrl } })
       }
     })
   },

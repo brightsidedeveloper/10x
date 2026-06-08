@@ -174,7 +174,18 @@ declare global {
         openDeviceHelp: () => Promise<{ ok: true }>
         getCreatePrContext: (
           cwd: string,
-        ) => Promise<{ applicable: false } | { applicable: true; hasOpenPr: boolean; hasMergedPr: boolean; compareUrl: string }>
+        ) => Promise<
+          | { applicable: false }
+          | {
+              applicable: true
+              hasOpenPr: boolean
+              hasMergedPr: boolean
+              compareUrl: string
+              openPrNumber: number | null
+              canMerge: boolean
+            }
+        >
+        mergePr: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
       }
       claudeCode: {
         /** Resolves after probing PATH (and common install locations) from the main process. */
