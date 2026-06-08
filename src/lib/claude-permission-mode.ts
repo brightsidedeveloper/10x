@@ -4,7 +4,7 @@
  */
 export type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
 
-export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'bypassPermissions'
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'acceptEdits'
 
 export type ClaudePermissionModeOption = {
   mode: ClaudePermissionMode

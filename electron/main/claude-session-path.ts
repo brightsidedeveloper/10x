@@ -36,7 +36,7 @@ export function shellSingleQuote(value: string): string {
  */
 export type ClaudePermissionMode = 'bypassPermissions' | 'acceptEdits' | 'plan' | 'default'
 
-export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'bypassPermissions'
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = 'acceptEdits'
 
 export function isClaudePermissionMode(value: unknown): value is ClaudePermissionMode {
   return (
