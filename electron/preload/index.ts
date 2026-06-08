@@ -181,6 +181,12 @@ const api = {
       ipcRenderer.invoke('git:openCommitOnGithub', args),
     classify: (cwd: string): Promise<GitClassifyResult> =>
       ipcRenderer.invoke('git:classify', cwd),
+    clone: (args: {
+      url: string
+      parentDir: string
+      folderName?: string
+    }): Promise<{ ok: true; path: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('git:clone', args),
     remoteOriginStatus: (cwd: string): Promise<GitRemoteOriginStatus> =>
       ipcRenderer.invoke('git:remoteOriginStatus', cwd),
     createWorktree: (args: {

@@ -1296,6 +1296,48 @@ export async function gitCommitDiff(
   return { ok: true, text: r.stdout }
 }
 
+function repoNameFromCloneUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '')
+  if (!trimmed) return 'repository'
+  const withoutGit = trimmed.replace(/\.git$/i, '')
+  const parts = withoutGit.split(/[/:]/)
+  const last = parts[parts.length - 1]?.trim() ?? ''
+  if (!last || /[\s/\\]/.test(last)) return 'repository'
+  return last
+}
+
+export type GitCloneResult = { ok: true; path: string } | { ok: false; error: string }
+
+export async function gitClone(args: {
+  url: string
+  parentDir: string
+  folderName?: string
+}): Promise<GitCloneResult> {
+  const url = args.url.trim()
+  const parentDir = path.resolve(args.parentDir.trim())
+  const folderName = (args.folderName?.trim() || repoNameFromCloneUrl(url)).trim()
+
+  if (!url) return { ok: false, error: 'Enter a repository URL.' }
+  if (!folderName || /[/\\]/.test(folderName) || folderName === '.' || folderName === '..') {
+    return { ok: false, error: 'Enter a valid folder name.' }
+  }
+  if (!existsSync(parentDir)) {
+    return { ok: false, error: 'Choose a folder to clone into.' }
+  }
+
+  const dest = path.join(parentDir, folderName)
+  if (existsSync(dest)) {
+    return { ok: false, error: `Already exists: ${dest}` }
+  }
+
+  const r = await runGit(parentDir, ['clone', '--', url, folderName])
+  if (!r.ok) return r
+  if (!existsSync(dest)) {
+    return { ok: false, error: 'Clone finished but the folder was not found.' }
+  }
+  return { ok: true, path: dest }
+}
+
 export function registerGitIpc() {
   ipcMain.handle('git:openOriginInBrowser', async (_e: IpcMainInvokeEvent, cwd: string) => {
     if (typeof cwd !== 'string' || !cwd.trim()) {
@@ -1323,6 +1365,21 @@ export function registerGitIpc() {
       return { isRepo: false }
     }
     return gitClassify(cwd)
+  })
+
+  ipcMain.handle('git:clone', async (_e: IpcMainInvokeEvent, args: unknown) => {
+    if (args == null || typeof args !== 'object') {
+      return { ok: false, error: 'Invalid arguments.' } satisfies GitCloneResult
+    }
+    const a = args as Record<string, unknown>
+    if (typeof a.url !== 'string' || typeof a.parentDir !== 'string') {
+      return { ok: false, error: 'Repository URL and parent folder are required.' } satisfies GitCloneResult
+    }
+    return gitClone({
+      url: a.url,
+      parentDir: a.parentDir,
+      folderName: typeof a.folderName === 'string' ? a.folderName : undefined,
+    })
   })
 
   ipcMain.handle('git:remoteOriginStatus', async (_e: IpcMainInvokeEvent, cwd: string) => {

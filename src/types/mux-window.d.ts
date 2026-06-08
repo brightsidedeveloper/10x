@@ -33,6 +33,11 @@ declare global {
           hash: string
         }) => Promise<{ ok: true } | { ok: false; error: string }>
         classify: (cwd: string) => Promise<{ isRepo: false } | { isRepo: true; toplevel: string; commonDir: string }>
+        clone: (args: {
+          url: string
+          parentDir: string
+          folderName?: string
+        }) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
         remoteOriginStatus: (cwd: string) => Promise<{ isRepo: false } | { isRepo: true; hasOrigin: boolean }>
         createWorktree: (args: {
           repoCwd: string
