@@ -762,6 +762,34 @@ export async function gitGithubCompareBasics(rawPath: string): Promise<GitGithub
   return { kind: 'ok', owner: parsed.owner, repo: parsed.repo, branch }
 }
 
+/**
+ * Subjects of commits on HEAD that are ahead of `origin/<baseBranch>`, oldest first.
+ * Falls back to the latest commit subject when the base ref is unavailable locally.
+ */
+export async function gitCommitSubjectsAhead(rawPath: string, baseBranch: string): Promise<string[]> {
+  const classified = await gitClassify(rawPath.trim())
+  if (!classified.isRepo) return []
+  const base = baseBranch.trim()
+  if (base) {
+    const range = await runGit(classified.toplevel, [
+      'log',
+      '--reverse',
+      '--pretty=%s',
+      `origin/${base}..HEAD`,
+    ])
+    if (range.ok) {
+      const lines = range.stdout
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+      if (lines.length > 0) return lines
+    }
+  }
+  const last = await runGit(classified.toplevel, ['log', '-1', '--pretty=%s'])
+  if (last.ok && last.stdout.trim()) return [last.stdout.trim()]
+  return []
+}
+
 export async function gitClassify(cwd: string): Promise<GitClassifyResult> {
   /** One process instead of three sequential `rev-parse` calls (saves ~2 spawns per summary). */
   const r = await runGit(cwd, [

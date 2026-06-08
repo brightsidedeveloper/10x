@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { CreatePrDialog } from '@/features/git/create-pr-dialog'
 import { GitCommitMessageDialog } from '@/features/git/git-commit-message-dialog'
 import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-visible-workspace'
 import { normalizeGitCwdKey } from '@/features/git/normalize-git-cwd'
@@ -62,6 +63,7 @@ export function GitQuickActionButton({ className }: Props) {
 
   const [commitOpen, setCommitOpen] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [createPrOpen, setCreatePrOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const commitNonce = useCommandPaletteIntentsStore((s) => s.commitNonce)
   const publishNonce = useCommandPaletteIntentsStore((s) => s.publishNonce)
@@ -156,12 +158,7 @@ export function GitQuickActionButton({ className }: Props) {
         break
       case 'createPr': {
         if (effectiveMuxFollowUp?.kind !== 'createPr') return
-        const url = effectiveMuxFollowUp.compareUrl
-        void runWithStatusActivity({ domain: 'github', label: 'Opening pull request', detail: url }, async () => {
-          const r = await window.mux.shell.openExternal(url)
-          if (!r.ok) window.alert(r.error)
-          return r
-        })
+        setCreatePrOpen(true)
         break
       }
       case 'mergePr': {
@@ -237,6 +234,16 @@ export function GitQuickActionButton({ className }: Props) {
         onOpenChange={setPublishOpen}
         gitCwd={cwd}
         onPublished={() => {
+          void refreshFocusedCheckoutGit()
+        }}
+      />
+
+      <CreatePrDialog
+        open={createPrOpen}
+        onOpenChange={setCreatePrOpen}
+        cwd={cwd}
+        compareUrl={effectiveMuxFollowUp?.kind === 'createPr' ? effectiveMuxFollowUp.compareUrl : null}
+        onCreated={() => {
           void refreshFocusedCheckoutGit()
         }}
       />

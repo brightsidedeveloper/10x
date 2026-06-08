@@ -185,6 +185,24 @@ declare global {
               canMerge: boolean
             }
         >
+        getCreatePrDraft: (
+          cwd: string,
+        ) => Promise<
+          | { ok: false }
+          | {
+              ok: true
+              title: string
+              body: string
+              baseBranch: string
+              headBranch: string
+              compareUrl: string
+            }
+        >
+        createPr: (args: {
+          cwd: string
+          title: string
+          body: string
+        }) => Promise<{ ok: true; html_url: string; number: number } | { ok: false; error: string }>
         mergePr: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
       }
       claudeCode: {

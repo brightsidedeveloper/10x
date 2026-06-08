@@ -8,6 +8,7 @@ import {
   gitAddAll,
   gitAddRemote,
   gitCommit,
+  gitCommitSubjectsAhead,
   gitGithubCompareBasics,
   gitInit,
   gitPush,
@@ -206,6 +207,99 @@ export async function githubGetCreatePrContext(cwd: string): Promise<GithubCreat
   }
 
   return { applicable: true, hasOpenPr, hasMergedPr, compareUrl, openPrNumber, canMerge }
+}
+
+export type GithubCreatePrDraft =
+  | { ok: false }
+  | { ok: true; title: string; body: string; baseBranch: string; headBranch: string; compareUrl: string }
+
+/** Suggested title/body for a new PR, derived from the branch's commits ahead of the default branch. */
+export async function githubGetCreatePrDraft(cwd: string): Promise<GithubCreatePrDraft> {
+  const b = await gitGithubCompareBasics(cwd.trim())
+  if (b.kind !== 'ok') return { ok: false }
+
+  const token = loadGithubToken()
+  const { owner, repo, branch } = b
+
+  let defaultBranch = 'main'
+  const repoRes = await githubApiGetJson<{ default_branch?: string }>(`/repos/${owner}/${repo}`, token)
+  if (repoRes.ok && typeof repoRes.data.default_branch === 'string' && repoRes.data.default_branch) {
+    defaultBranch = repoRes.data.default_branch
+  }
+  if (branch === defaultBranch) return { ok: false }
+
+  const subjects = await gitCommitSubjectsAhead(cwd, defaultBranch)
+  const humanBranch = branch
+    .replace(/^.*\//, '')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+
+  let title = humanBranch || branch
+  let body = ''
+  if (subjects.length === 1) {
+    title = subjects[0]!
+  } else if (subjects.length > 1) {
+    title = humanBranch || subjects[0]!
+    body = subjects.map((s) => `- ${s}`).join('\n')
+  }
+
+  const compareUrl = `https://github.com/${owner}/${repo}/compare/${encodeURIComponent(defaultBranch)}...${encodeURIComponent(branch)}?expand=1`
+  return { ok: true, title, body, baseBranch: defaultBranch, headBranch: branch, compareUrl }
+}
+
+export type GithubCreatePrResult =
+  | { ok: true; html_url: string; number: number }
+  | { ok: false; error: string }
+
+/** Create a pull request from this worktree's branch into the repo's default branch. */
+export async function githubCreatePr(
+  cwd: string,
+  args: { title: string; body: string },
+): Promise<GithubCreatePrResult> {
+  const b = await gitGithubCompareBasics(cwd.trim())
+  if (b.kind !== 'ok') {
+    return { ok: false, error: 'This checkout is not a GitHub worktree.' }
+  }
+
+  const title = args.title.trim()
+  if (!title) return { ok: false, error: 'A pull request title is required.' }
+
+  const token = loadGithubToken()
+  if (!token) return { ok: false, error: 'Connect GitHub in Settings first.' }
+
+  const { owner, repo, branch } = b
+
+  let defaultBranch = 'main'
+  const repoRes = await githubApiGetJson<{ default_branch?: string }>(`/repos/${owner}/${repo}`, token)
+  if (repoRes.ok && typeof repoRes.data.default_branch === 'string' && repoRes.data.default_branch) {
+    defaultBranch = repoRes.data.default_branch
+  }
+  if (branch === defaultBranch) {
+    return { ok: false, error: 'This branch is the default branch — nothing to open a PR against.' }
+  }
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title, body: args.body ?? '', head: branch, base: defaultBranch }),
+  })
+  const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    let msg = raw.message != null ? String(raw.message) : `${res.status} ${res.statusText}`
+    if (Array.isArray(raw.errors) && raw.errors.length > 0) {
+      const e0 = raw.errors[0] as Record<string, unknown>
+      if (e0?.message != null) msg = `${msg}: ${String(e0.message)}`
+    }
+    return { ok: false, error: msg }
+  }
+  const htmlUrl = typeof raw.html_url === 'string' ? raw.html_url : ''
+  const number = typeof raw.number === 'number' ? raw.number : 0
+  return { ok: true, html_url: htmlUrl, number }
 }
 
 export type GithubMergePrResult = { ok: true } | { ok: false; error: string }
@@ -542,6 +636,30 @@ export function registerGithubIpc() {
       return { applicable: false as const }
     }
     return githubGetCreatePrContext(rawCwd.trim())
+  })
+
+  ipcMain.handle('github:getCreatePrDraft', async (_e: IpcMainInvokeEvent, rawCwd: unknown) => {
+    if (typeof rawCwd !== 'string' || !rawCwd.trim()) {
+      return { ok: false as const }
+    }
+    return githubGetCreatePrDraft(rawCwd.trim())
+  })
+
+  ipcMain.handle('github:createPr', async (_e: IpcMainInvokeEvent, payload: unknown) => {
+    if (payload == null || typeof payload !== 'object') {
+      return { ok: false as const, error: 'Invalid arguments.' }
+    }
+    const a = payload as Record<string, unknown>
+    if (typeof a.cwd !== 'string' || !a.cwd.trim()) {
+      return { ok: false as const, error: 'Invalid path.' }
+    }
+    if (typeof a.title !== 'string' || !a.title.trim()) {
+      return { ok: false as const, error: 'A pull request title is required.' }
+    }
+    return githubCreatePr(a.cwd.trim(), {
+      title: a.title,
+      body: typeof a.body === 'string' ? a.body : '',
+    })
   })
 
   ipcMain.handle('github:mergePr', async (_e: IpcMainInvokeEvent, rawCwd: unknown) => {
