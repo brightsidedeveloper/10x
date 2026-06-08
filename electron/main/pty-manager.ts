@@ -87,13 +87,6 @@ function posixShellCommandArgs(shell: PosixShell, command: string): string[] {
   return ['-c', command]
 }
 
-function posixInteractiveShellArgs(shell: PosixShell): string[] {
-  if (shell.kind === 'fish' || shell.kind === 'zsh' || shell.kind === 'bash') {
-    return ['-l']
-  }
-  return []
-}
-
 function posixShellToResolved(shell: PosixShell): ResolvedTerminalShell {
   return {
     path: shell.path,

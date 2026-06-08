@@ -137,7 +137,15 @@ function posixCandidates(kind: Exclude<TerminalShellPreference, 'default' | 'git
 }
 
 function resolvePosixByPreference(preference: TerminalShellPreference): ResolvedTerminalShell | null {
-  if (preference === 'default') return null
+  if (
+    preference === 'default' ||
+    preference === 'git-bash' ||
+    preference === 'powershell' ||
+    preference === 'pwsh' ||
+    preference === 'cmd'
+  ) {
+    return null
+  }
   for (const candidate of posixCandidates(preference)) {
     if (!existsSync(candidate)) continue
     const posixKind = classifyPosixShell(candidate)
