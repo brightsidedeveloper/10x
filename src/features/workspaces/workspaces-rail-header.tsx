@@ -1,9 +1,11 @@
 import { useState } from 'react'
 
-import { Plus, FolderOpen, GitBranch } from 'lucide-react'
+import { Plus, FolderOpen, GitBranch, Github } from 'lucide-react'
 
 import { CloneRepositoryDialog } from '@/features/workspaces/clone-repository-dialog'
+import { CreateGithubRepositoryDialog } from '@/features/workspaces/create-github-repository-dialog'
 import { useAppendWorkspace } from '@/features/workspaces/hooks/use-append-workspace'
+import { useGithubDeviceAuth } from '@/features/github/use-github-device-auth'
 import { usePersistWorkspacesMutation } from '@/features/workspaces/hooks/use-workspaces'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +18,11 @@ import {
 export function WorkspacesRailHeader() {
   const persist = usePersistWorkspacesMutation()
   const appendWorkspace = useAppendWorkspace()
+  const auth = useGithubDeviceAuth()
   const [cloneOpen, setCloneOpen] = useState(false)
+  const [createGithubOpen, setCreateGithubOpen] = useState(false)
+
+  const showGithubCreate = !auth.loadingStatus && auth.githubLogin != null
 
   async function selectExistingFolder() {
     const dir = await window.mux.dialog.pickWorkspace()
@@ -31,6 +37,14 @@ export function WorkspacesRailHeader() {
         onOpenChange={setCloneOpen}
         onCloned={appendWorkspace}
       />
+      {auth.githubLogin ? (
+        <CreateGithubRepositoryDialog
+          open={createGithubOpen}
+          onOpenChange={setCreateGithubOpen}
+          githubLogin={auth.githubLogin}
+          onCreated={appendWorkspace}
+        />
+      ) : null}
       <div className="flex h-9 items-center justify-between gap-2 border-b border-border px-2">
         <span className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Workspaces
@@ -56,6 +70,12 @@ export function WorkspacesRailHeader() {
               <GitBranch className="size-3.5" />
               Clone repository…
             </DropdownMenuItem>
+            {showGithubCreate ? (
+              <DropdownMenuItem className="gap-2" onSelect={() => setCreateGithubOpen(true)}>
+                <Github className="size-3.5" />
+                Create repository…
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

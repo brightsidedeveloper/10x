@@ -256,6 +256,13 @@ const api = {
       | { ok: true; html_url: string; clone_url: string; ssh_url: string }
       | { ok: false; error: string }
     > => ipcRenderer.invoke('github:createRepoAndLink', args),
+    createRepoWorkspace: (args: {
+      parentDir: string
+      name: string
+      description?: string
+      private?: boolean
+    }): Promise<{ ok: true; path: string; html_url: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('github:createRepoWorkspace', args),
     openNewRepoPage: (): Promise<{ ok: true }> => ipcRenderer.invoke('github:openNewRepoPage'),
     openOAuthAppSettings: (): Promise<{ ok: true }> =>
       ipcRenderer.invoke('github:openOAuthAppSettings'),

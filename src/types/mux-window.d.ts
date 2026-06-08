@@ -163,6 +163,12 @@ declare global {
           description?: string
           private?: boolean
         }) => Promise<{ ok: true; html_url: string; clone_url: string; ssh_url: string } | { ok: false; error: string }>
+        createRepoWorkspace: (args: {
+          parentDir: string
+          name: string
+          description?: string
+          private?: boolean
+        }) => Promise<{ ok: true; path: string; html_url: string } | { ok: false; error: string }>
         openNewRepoPage: () => Promise<{ ok: true }>
         openOAuthAppSettings: () => Promise<{ ok: true }>
         openDeviceHelp: () => Promise<{ ok: true }>

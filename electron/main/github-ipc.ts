@@ -1,7 +1,17 @@
 import { ipcMain, shell } from 'electron'
 import type { IpcMainInvokeEvent } from 'electron'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import path from 'node:path'
 
-import { gitAddRemote, gitGithubCompareBasics } from './git-ipc'
+import {
+  gitAddAll,
+  gitAddRemote,
+  gitCommit,
+  gitGithubCompareBasics,
+  gitInit,
+  gitPush,
+} from './git-ipc'
 import { getGithubOAuthClientId } from './github-oauth-client-id'
 import {
   clearGithubToken,
@@ -246,6 +256,92 @@ async function createGithubRepoOnApi(
   }
 }
 
+export type CreateGithubWorkspaceResult =
+  | { ok: true; path: string; html_url: string }
+  | { ok: false; error: string }
+
+function sanitizeGithubRepoName(name: string): string {
+  return name.trim().replace(/\s+/g, '-')
+}
+
+/** Create a local folder, init Git, create the GitHub repo, link origin, and push an initial commit. */
+export async function createGithubWorkspace(args: {
+  parentDir: string
+  name: string
+  description?: string
+  private?: boolean
+}): Promise<CreateGithubWorkspaceResult> {
+  const parentDir = path.resolve(args.parentDir.trim())
+  const repoName = sanitizeGithubRepoName(args.name)
+  if (!repoName) return { ok: false, error: 'Repository name is required.' }
+  if (/[/\\]/.test(repoName) || repoName === '.' || repoName === '..') {
+    return { ok: false, error: 'Enter a valid repository name.' }
+  }
+  if (!existsSync(parentDir)) {
+    return { ok: false, error: 'Choose a folder to create the project in.' }
+  }
+
+  const dest = path.join(parentDir, repoName)
+  if (existsSync(dest)) {
+    return { ok: false, error: `Already exists: ${dest}` }
+  }
+
+  const token = loadGithubToken()
+  if (!token) {
+    return { ok: false, error: 'Connect GitHub in Settings first.' }
+  }
+
+  let githubCreated: CreateRepoApiOk | null = null
+  try {
+    mkdirSync(dest, { recursive: true })
+
+    const init = await gitInit(dest)
+    if (!init.ok) throw new Error(init.error)
+
+    writeFileSync(path.join(dest, 'README.md'), `# ${repoName}\n`, 'utf8')
+
+    const created = await createGithubRepoOnApi(token, {
+      name: repoName,
+      description: args.description,
+      private: args.private,
+    })
+    if (!created.ok) throw new Error(created.error)
+    githubCreated = created
+
+    const url = created.clone_url
+    if (!url) throw new Error('GitHub did not return a repository URL.')
+
+    const link = await gitAddRemote(dest, 'origin', url)
+    if (!link.ok) throw new Error(link.error)
+
+    const staged = await gitAddAll(dest)
+    if (!staged.ok) throw new Error(staged.error)
+
+    const committed = await gitCommit(dest, 'Initial commit')
+    if (!committed.ok) throw new Error(committed.error)
+
+    const pushed = await gitPush(dest)
+    if (!pushed.ok) throw new Error(pushed.error)
+
+    return { ok: true, path: dest, html_url: created.html_url }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    if (githubCreated == null) {
+      try {
+        await rm(dest, { recursive: true, force: true })
+      } catch {
+        /* ignore cleanup errors */
+      }
+      return { ok: false, error: message }
+    }
+    const suffix = githubCreated.html_url ? ` Repository: ${githubCreated.html_url}` : ''
+    return {
+      ok: false,
+      error: `${message}.${suffix} The local folder was kept so you can fix and push manually.`,
+    }
+  }
+}
+
 export function registerGithubIpc() {
   ipcMain.handle('github:deviceStart', async () => startGithubDeviceLogin())
 
@@ -333,6 +429,25 @@ export function registerGithubIpc() {
       }
     },
   )
+
+  ipcMain.handle('github:createRepoWorkspace', async (_e: IpcMainInvokeEvent, args: unknown) => {
+    if (args == null || typeof args !== 'object') {
+      return { ok: false, error: 'Invalid arguments.' } satisfies CreateGithubWorkspaceResult
+    }
+    const a = args as Record<string, unknown>
+    if (typeof a.parentDir !== 'string' || typeof a.name !== 'string') {
+      return {
+        ok: false,
+        error: 'Project folder and repository name are required.',
+      } satisfies CreateGithubWorkspaceResult
+    }
+    return createGithubWorkspace({
+      parentDir: a.parentDir,
+      name: a.name,
+      description: typeof a.description === 'string' ? a.description : undefined,
+      private: a.private === true,
+    })
+  })
 
   ipcMain.handle('github:openNewRepoPage', async () => {
     await shell.openExternal('https://github.com/new')
