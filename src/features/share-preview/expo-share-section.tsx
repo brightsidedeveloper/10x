@@ -9,6 +9,9 @@ import { TunnelQr } from './tunnel-qr'
 import { useActiveWorkspace } from '@/features/workspaces/hooks/use-active-workspace'
 import { useExpoStore, type ExpoSession } from '@/stores/expo-store'
 
+/** Expo dev builds need Xcode, so this section is macOS-only. */
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
+
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -64,8 +67,8 @@ export function ExpoShareSection({ onClose }: Props) {
       (s.state === 'installing' || s.state === 'starting' || s.state === 'ready'),
   )
 
-  // Only show for Expo projects (mirrors the Dev Build section).
-  if (isExpo !== true) return null
+  // macOS-only, and only for Expo projects.
+  if (!IS_MAC || isExpo !== true) return null
 
   async function startExpo() {
     if (!cwd) return
