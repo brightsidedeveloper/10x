@@ -13,6 +13,8 @@ import { registerAppIpc } from './app-ipc'
 import { applyNativeChromeTheme, windowBackgroundColor } from './native-chrome-theme'
 import { readUiColorMode } from './persisted-store'
 import { registerClaudeCodeCliIpc } from './claude-code-cli'
+import { registerExpoIpc, stopAllExpoSessions } from './expo-manager'
+import { registerIosIpc } from './ios-devices'
 import { registerTunnelIpc, stopAllTunnels } from './tunnel-manager'
 import { registerUpdaterIpc } from './updater-ipc'
 import { tenxStore, type TenxStoreSchema } from './persisted-store'
@@ -103,6 +105,8 @@ registerShellIpc()
 registerUpdaterIpc()
 registerClaudeCodeCliIpc()
 registerTunnelIpc()
+registerExpoIpc()
+registerIosIpc()
 
 ipcMain.handle('dialog:pickWorkspace', async (event) => {
   const parent =
@@ -131,6 +135,7 @@ app.on('before-quit', () => {
   broadcastAppWillQuit()
   killAllPtySessions()
   stopAllTunnels()
+  stopAllExpoSessions()
 })
 
 app.on('window-all-closed', () => {

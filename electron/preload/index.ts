@@ -118,6 +118,15 @@ type TunnelSnapshot = {
   error: string | null
 }
 
+type ExpoSnapshot = {
+  id: string
+  cwd: string
+  label: string
+  state: 'installing' | 'starting' | 'ready' | 'error' | 'closed'
+  url: string | null
+  error: string | null
+}
+
 type GithubCreatePrContext =
   | { applicable: false }
   | {
@@ -452,6 +461,26 @@ const api = {
         handler(payload)
       ipcRenderer.on('tunnel:status', listener)
       return () => ipcRenderer.removeListener('tunnel:status', listener)
+    },
+  },
+  ios: {
+    openProject: (cwd: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('ios:openProject', cwd),
+  },
+  expo: {
+    isProject: (cwd: string): Promise<boolean> => ipcRenderer.invoke('expo:isProject', cwd),
+    isDevClient: (cwd: string): Promise<boolean> => ipcRenderer.invoke('expo:isDevClient', cwd),
+    start: (
+      cwd: string,
+    ): Promise<{ ok: true; session: ExpoSnapshot } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('expo:start', cwd),
+    stop: (id: string): Promise<boolean> => ipcRenderer.invoke('expo:stop', id),
+    list: (): Promise<ExpoSnapshot[]> => ipcRenderer.invoke('expo:list'),
+    onStatus: (handler: (payload: ExpoSnapshot) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: ExpoSnapshot) =>
+        handler(payload)
+      ipcRenderer.on('expo:status', listener)
+      return () => ipcRenderer.removeListener('expo:status', listener)
     },
   },
   updater: {

@@ -16,6 +16,15 @@ declare global {
     error: string | null
   }
 
+  type ExpoSnapshot = {
+    id: string
+    cwd: string
+    label: string
+    state: 'installing' | 'starting' | 'ready' | 'error' | 'closed'
+    url: string | null
+    error: string | null
+  }
+
   interface Window {
     mux: {
       app: {
@@ -306,6 +315,23 @@ declare global {
         stop: (tunnelId: string) => Promise<boolean>
         list: () => Promise<TunnelSnapshot[]>
         onStatus: (handler: (payload: TunnelSnapshot) => void) => () => void
+      }
+      ios: {
+        /** Open the generated .xcworkspace in Xcode (for first-time signing / a one-time device build). */
+        openProject: (cwd: string) => Promise<{ ok: true } | { ok: false; error: string }>
+      }
+      expo: {
+        /** Whether `cwd` looks like an Expo project (expo dep or app config). */
+        isProject: (cwd: string) => Promise<boolean>
+        /** Whether `cwd` has `expo-dev-client` (so `expo start` serves a dev build, not Expo Go). */
+        isDevClient: (cwd: string) => Promise<boolean>
+        /** Start `npx expo start --tunnel`; the `exp://` URL arrives via `onStatus`. */
+        start: (
+          cwd: string,
+        ) => Promise<{ ok: true; session: ExpoSnapshot } | { ok: false; error: string }>
+        stop: (id: string) => Promise<boolean>
+        list: () => Promise<ExpoSnapshot[]>
+        onStatus: (handler: (payload: ExpoSnapshot) => void) => () => void
       }
       updater: {
         getAppVersion: () => Promise<string>

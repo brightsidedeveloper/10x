@@ -1,23 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
+import { Copy, ExternalLink, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { ExpoShareSection } from './expo-share-section'
+import { ShareStateBadge } from './share-state-badge'
 import { TunnelQr } from './tunnel-qr'
-import { cn } from '@/lib/utils'
 import { useTunnelStore, type Tunnel } from '@/stores/tunnel-store'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-const STATE_LABEL: Record<Tunnel['state'], string> = {
-  starting: 'Starting…',
-  ready: 'Live',
-  error: 'Error',
-  closed: 'Closed',
 }
 
 async function copyText(text: string) {
@@ -156,7 +150,7 @@ export function SharePreviewDialog({ open, onOpenChange }: Props) {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm">localhost:{tunnel.port}</span>
-                      <StateBadge state={tunnel.state} />
+                      <ShareStateBadge state={tunnel.state} />
                     </div>
                     <Button
                       type="button"
@@ -210,26 +204,10 @@ export function SharePreviewDialog({ open, onOpenChange }: Props) {
               ))}
             </ul>
           )}
+
+          <ExpoShareSection onClose={() => onOpenChange(false)} />
         </div>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function StateBadge({ state }: { state: Tunnel['state'] }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs',
-        state === 'ready' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-        state === 'starting' && 'bg-muted text-muted-foreground',
-        state === 'error' && 'bg-destructive/15 text-destructive',
-        state === 'closed' && 'bg-muted text-muted-foreground',
-      )}
-    >
-      {state === 'ready' && <Check className="size-3" />}
-      {state === 'starting' && <Loader2 className="size-3 animate-spin" />}
-      {STATE_LABEL[state]}
-    </span>
   )
 }
