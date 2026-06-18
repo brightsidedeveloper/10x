@@ -109,6 +109,15 @@ type GithubCreateRepo =
 
 type ShellResult = { ok: true } | { ok: false; error: string }
 
+type TunnelSnapshot = {
+  id: string
+  port: number
+  kind: 'web' | 'expo'
+  state: 'starting' | 'ready' | 'error' | 'closed'
+  url: string | null
+  error: string | null
+}
+
 type GithubCreatePrContext =
   | { applicable: false }
   | {
@@ -422,6 +431,27 @@ const api = {
       ) => handler(payload)
       ipcRenderer.on('pty:exit', listener)
       return () => ipcRenderer.removeListener('pty:exit', listener)
+    },
+  },
+  tunnel: {
+    isInstalled: (): Promise<boolean> => ipcRenderer.invoke('tunnel:isInstalled'),
+    getInstallCommand: (): Promise<{
+      command: string
+      label: string
+      isWindows: boolean
+    }> => ipcRenderer.invoke('tunnel:getInstallCommand'),
+    start: (args: {
+      port: number
+      kind?: 'web' | 'expo'
+    }): Promise<{ ok: true; tunnel: TunnelSnapshot } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('tunnel:start', args),
+    stop: (tunnelId: string): Promise<boolean> => ipcRenderer.invoke('tunnel:stop', tunnelId),
+    list: (): Promise<TunnelSnapshot[]> => ipcRenderer.invoke('tunnel:list'),
+    onStatus: (handler: (payload: TunnelSnapshot) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: TunnelSnapshot) =>
+        handler(payload)
+      ipcRenderer.on('tunnel:status', listener)
+      return () => ipcRenderer.removeListener('tunnel:status', listener)
     },
   },
   updater: {

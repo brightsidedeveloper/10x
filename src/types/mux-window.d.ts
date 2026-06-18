@@ -7,6 +7,15 @@ import type {
 } from '@/lib/terminal-shell-preference'
 
 declare global {
+  type TunnelSnapshot = {
+    id: string
+    port: number
+    kind: 'web' | 'expo'
+    state: 'starting' | 'ready' | 'error' | 'closed'
+    url: string | null
+    error: string | null
+  }
+
   interface Window {
     mux: {
       app: {
@@ -284,6 +293,19 @@ declare global {
         kill: (sessionId: string) => Promise<boolean>
         onData: (handler: (payload: { sessionId: string; data: string }) => void) => () => void
         onExit: (handler: (payload: { sessionId: string; exitCode: number; signal?: number }) => void) => () => void
+      }
+      tunnel: {
+        /** Whether `cloudflared` is resolvable from the main process. */
+        isInstalled: () => Promise<boolean>
+        getInstallCommand: () => Promise<{ command: string; label: string; isWindows: boolean }>
+        /** Start a quick tunnel to `http://localhost:<port>`; the public URL arrives via `onStatus`. */
+        start: (args: {
+          port: number
+          kind?: 'web' | 'expo'
+        }) => Promise<{ ok: true; tunnel: TunnelSnapshot } | { ok: false; error: string }>
+        stop: (tunnelId: string) => Promise<boolean>
+        list: () => Promise<TunnelSnapshot[]>
+        onStatus: (handler: (payload: TunnelSnapshot) => void) => () => void
       }
       updater: {
         getAppVersion: () => Promise<string>

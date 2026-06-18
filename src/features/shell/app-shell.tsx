@@ -13,6 +13,7 @@ import { AppQuittingBridge } from '@/features/shell/app-quitting-bridge'
 import { ClaudeCodeCliProbeBridge } from '@/features/shell/claude-code-cli-probe-bridge'
 import { UpdateLaunchToastBridge } from '@/features/shell/update-launch-toast-bridge'
 import { RecentWorkspacePathsBridge } from '@/features/shell/recent-workspace-paths-bridge'
+import { TunnelStatusBridge } from '@/features/share-preview/tunnel-status-bridge'
 import { ThemeBridge } from '@/features/shell/theme-bridge'
 import { WorkspaceSync } from './workspace-sync'
 
@@ -20,6 +21,7 @@ export function AppShell() {
   return (
     <>
       <RecentWorkspacePathsBridge />
+      <TunnelStatusBridge />
       <ThemeBridge />
       <AppQuittingBridge />
       <ClaudeCodeCliProbeBridge />

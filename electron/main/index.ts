@@ -13,6 +13,7 @@ import { registerAppIpc } from './app-ipc'
 import { applyNativeChromeTheme, windowBackgroundColor } from './native-chrome-theme'
 import { readUiColorMode } from './persisted-store'
 import { registerClaudeCodeCliIpc } from './claude-code-cli'
+import { registerTunnelIpc, stopAllTunnels } from './tunnel-manager'
 import { registerUpdaterIpc } from './updater-ipc'
 import { tenxStore, type TenxStoreSchema } from './persisted-store'
 
@@ -101,6 +102,7 @@ registerGithubIpc()
 registerShellIpc()
 registerUpdaterIpc()
 registerClaudeCodeCliIpc()
+registerTunnelIpc()
 
 ipcMain.handle('dialog:pickWorkspace', async (event) => {
   const parent =
@@ -128,6 +130,7 @@ function broadcastAppWillQuit() {
 app.on('before-quit', () => {
   broadcastAppWillQuit()
   killAllPtySessions()
+  stopAllTunnels()
 })
 
 app.on('window-all-closed', () => {

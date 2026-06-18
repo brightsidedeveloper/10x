@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button'
 import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-visible-workspace'
 import { useActiveWorkspace } from '@/features/workspaces/hooks/use-active-workspace'
 import { SettingsDialog } from '@/features/settings/settings-dialog'
+import { SharePreviewDialog } from '@/features/share-preview/share-preview-dialog'
 import { runWithStatusActivity } from '@/lib/status/run-with-status-activity'
 import { useGitFocusedCheckoutStore } from '@/stores/git-focused-checkout-store'
 import { useSidePanelStore } from '@/stores/side-panel-store'
 import { useTerminalPanelCollapseStore } from '@/stores/terminal-panel-collapse-store'
-import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Settings, Terminal } from 'lucide-react'
+import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Settings, Share2, Terminal } from 'lucide-react'
 
 export function ActivityBar() {
   const active = useActiveWorkspace()
@@ -23,6 +24,7 @@ export function ActivityBar() {
   const gitLoadStateKind = useGitFocusedCheckoutStore((s) => s.loadState.kind)
   const [activeWorkspaceIsGitRepo, setActiveWorkspaceIsGitRepo] = useState<boolean | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const activeWorkspacePath = active?.path ?? null
 
@@ -71,6 +73,7 @@ export function ActivityBar() {
   return (
     <>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SharePreviewDialog open={shareOpen} onOpenChange={setShareOpen} />
       <aside
         className="flex h-full min-h-0 w-12 shrink-0 flex-col items-center border-r border-border bg-sidebar py-2"
         aria-label="Activity bar"
@@ -164,6 +167,17 @@ export function ActivityBar() {
             onClick={() => toggleTerminalPanel()}
           >
             <Terminal className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={activityBarIconButtonClass}
+            title="Share a dev server to your phone via a Cloudflare tunnel"
+            aria-label="Share dev server"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 className="size-4" />
           </Button>
           <ActivityBarGitScmButton />
         </div>
