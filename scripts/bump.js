@@ -24,7 +24,9 @@ import color from 'picocolors'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
-const pkgPath = join(root, 'package.json')
+// The versioned package is the desktop app; the workspace root has no version.
+const pkgPath = join(root, 'apps', 'desktop', 'package.json')
+const pkgRelPath = 'apps/desktop/package.json'
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, {
@@ -216,8 +218,8 @@ async function main() {
   log.step('pnpm install (refresh lockfile)…')
   run('pnpm', ['install'])
 
-  log.step('git add package.json & pnpm-lock.yaml…')
-  run('git', ['add', 'package.json', 'pnpm-lock.yaml'])
+  log.step(`git add ${pkgRelPath} & pnpm-lock.yaml…`)
+  run('git', ['add', pkgRelPath, 'pnpm-lock.yaml'])
 
   log.step(`git commit — ${color.dim('chore: bump version to ' + next)}…`)
   run('git', ['commit', '-m', `chore: bump version to ${next}`])

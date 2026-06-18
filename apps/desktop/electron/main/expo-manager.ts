@@ -4,7 +4,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow } from 'electron'
+
+import { bridge } from './ipc-bridge'
+import { emitToRemotes } from './remote/remote-broadcast'
 import type { IPty } from 'node-pty'
 
 import fixPath from 'fix-path'
@@ -61,7 +64,9 @@ function broadcast(channel: string, payload: unknown) {
 }
 
 function emitStatus(record: ExpoRecord) {
-  broadcast('expo:status', snapshot(record))
+  const view = snapshot(record)
+  broadcast('expo:status', view)
+  emitToRemotes('expo:status', view)
 }
 
 /** Env for spawned node tooling: keep it out of CI mode (which disables watch/reloads). */
@@ -329,25 +334,25 @@ export function stopAllExpoSessions(): void {
 }
 
 export function registerExpoIpc() {
-  ipcMain.handle('expo:isProject', (_event, cwd: unknown) =>
+  bridge.handle('expo:isProject', ([cwd]) =>
     typeof cwd === 'string' ? isExpoProject(cwd) : false,
   )
 
-  ipcMain.handle('expo:isDevClient', (_event, cwd: unknown) =>
+  bridge.handle('expo:isDevClient', ([cwd]) =>
     typeof cwd === 'string' ? isExpoDevClientProject(cwd) : false,
   )
 
-  ipcMain.handle('expo:start', (_event, cwd: unknown) => {
+  bridge.handle('expo:start', ([cwd]) => {
     if (typeof cwd !== 'string') {
       return { ok: false as const, error: 'No workspace selected.' }
     }
     return startExpo(cwd)
   })
 
-  ipcMain.handle('expo:stop', (_event, id: unknown) => {
+  bridge.handle('expo:stop', ([id]) => {
     if (typeof id !== 'string') return false
     return stopExpo(id)
   })
 
-  ipcMain.handle('expo:list', () => [...sessions.values()].map(snapshot))
+  bridge.handle('expo:list', () => [...sessions.values()].map(snapshot))
 }

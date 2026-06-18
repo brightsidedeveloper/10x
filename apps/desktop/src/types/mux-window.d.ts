@@ -5,12 +5,13 @@ import type {
   TerminalShellOptionsSnapshot,
   TerminalShellPreference,
 } from '@/lib/terminal-shell-preference'
+import type { PairingPayload, RemoteControlStatus } from '@10x/protocol'
 
 declare global {
   type TunnelSnapshot = {
     id: string
     port: number
-    kind: 'web' | 'expo'
+    kind: 'web' | 'expo' | 'control'
     state: 'starting' | 'ready' | 'error' | 'closed'
     url: string | null
     error: string | null
@@ -353,6 +354,18 @@ declare global {
         ) => () => void
         onUpdateDownloaded: (handler: () => void) => () => void
         onError: (handler: (payload: { message: string }) => void) => () => void
+      }
+      remote: {
+        enable: () => Promise<
+          | { ok: true; pairing: PairingPayload; status: RemoteControlStatus }
+          | { ok: false; error: string }
+        >
+        disable: () => Promise<RemoteControlStatus>
+        status: () => Promise<RemoteControlStatus>
+        rotatePairingCode: () => Promise<
+          { ok: true; pairing: PairingPayload } | { ok: false; error: string }
+        >
+        revokeDevice: (deviceId: string) => Promise<RemoteControlStatus>
       }
     }
   }

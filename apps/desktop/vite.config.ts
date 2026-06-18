@@ -13,6 +13,12 @@ export default defineConfig(({ command }) => {
   const isBuild = command === 'build'
   const sourcemap = isServe || Boolean(process.env.VSCODE_DEBUG)
 
+  // Externalize real npm deps from the main/preload bundles, but BUNDLE workspace
+  // packages (e.g. @10x/protocol) — they ship TS source and have no runtime npm entry.
+  const externalDeps = Object.keys(pkg.dependencies ?? {}).filter(
+    (name) => !name.startsWith('@10x/'),
+  )
+
   return {
     resolve: {
       alias: {
@@ -39,7 +45,7 @@ export default defineConfig(({ command }) => {
               minify: isBuild,
               outDir: 'dist-electron/main',
               rollupOptions: {
-                external: Object.keys(pkg.dependencies ?? {}),
+                external: externalDeps,
               },
             },
           },
@@ -52,7 +58,7 @@ export default defineConfig(({ command }) => {
               minify: isBuild,
               outDir: 'dist-electron/preload',
               rollupOptions: {
-                external: Object.keys(pkg.dependencies ?? {}),
+                external: externalDeps,
               },
             },
           },

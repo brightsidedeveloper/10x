@@ -20,6 +20,8 @@ import {
   onAgentOutput,
   registerAgentSession,
 } from './notification-manager'
+import { emitPtyToRemotes } from './remote/remote-broadcast'
+import { dropPtyMirror, feedPtyMirror } from './remote/pty-mirror'
 import { readClaudePermissionMode, readTerminalShellPreference } from './persisted-store'
 import {
   claudePowerShellSpawnArgs,
@@ -415,6 +417,33 @@ function stripAutomaticTerminalChunks(data: string): string {
   return s
 }
 
+/**
+ * Write input to a session and feed the agent-attention detector. Shared by the
+ * desktop `pty:write` IPC and the remote bridge's `pty` write frame.
+ *
+ * Skips focus-in/out sequences xterm.js sends automatically when Claude Code enables
+ * focus tracking (ESC[?1004h) — not real keystrokes, and they would defeat the
+ * hasReceivedInput guard and surface bogus attention dots on fresh tabs.
+ */
+export function writePtySession(sessionId: string, data: string): void {
+  sessions.get(sessionId)?.write(data)
+  const userPayload = stripAutomaticTerminalChunks(data)
+  if (userPayload.length > 0) {
+    onAgentInput(sessionId, userPayload)
+  }
+}
+
+/** Resize a session's PTY. Shared by the desktop `pty:resize` IPC and the bridge. */
+export function resizePtySession(sessionId: string, cols: number, rows: number): void {
+  const proc = sessions.get(sessionId)
+  if (!proc) return
+  try {
+    proc.resize(Math.max(2, cols), Math.max(1, rows))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function registerPtyIpc() {
   ipcMain.handle('pty:create', async (_event, opts: PtyCreateOpts) => {
     try {
@@ -454,14 +483,24 @@ export function registerPtyIpc() {
 
       proc.onData((data) => {
         broadcast('pty:data', { sessionId, data })
+        feedPtyMirror(sessionId, data)
+        emitPtyToRemotes(sessionId, { t: 'pty', op: 'data', sessionId, data })
         if (kind !== 'shell') onAgentOutput(sessionId, data)
       })
 
       proc.onExit(({ exitCode, signal }) => {
         sessions.delete(sessionId)
+        dropPtyMirror(sessionId)
         if (kind !== 'shell') cleanupAgentSession(sessionId)
         if (!suppressPtyExitBroadcast) {
           broadcast('pty:exit', { sessionId, exitCode, signal })
+          emitPtyToRemotes(sessionId, {
+            t: 'pty',
+            op: 'exit',
+            sessionId,
+            exitCode,
+            ...(typeof signal === 'number' ? { signal } : {}),
+          })
         }
       })
 
@@ -479,28 +518,14 @@ export function registerPtyIpc() {
 
   ipcMain.on('pty:write', (_event, sessionId: unknown, data: unknown) => {
     if (typeof sessionId !== 'string' || typeof data !== 'string') return
-    sessions.get(sessionId)?.write(data)
-    // Skip focus-in/out sequences that xterm.js sends automatically when Claude Code
-    // enables focus tracking (ESC[?1004h). These are not real user keystrokes and would
-    // otherwise prematurely mark a fresh session as interacted, defeating the
-    // hasReceivedInput guard and triggering blue dots on newly-created agent tabs.
-    const userPayload = stripAutomaticTerminalChunks(data)
-    if (userPayload.length > 0) {
-      onAgentInput(sessionId, userPayload)
-    }
+    writePtySession(sessionId, data)
   })
 
   ipcMain.on('pty:resize', (_event, sessionId: unknown, cols: unknown, rows: unknown) => {
     if (typeof sessionId !== 'string' || typeof cols !== 'number' || typeof rows !== 'number') {
       return
     }
-    const proc = sessions.get(sessionId)
-    if (!proc) return
-    try {
-      proc.resize(Math.max(2, cols), Math.max(1, rows))
-    } catch {
-      /* ignore */
-    }
+    resizePtySession(sessionId, cols, rows)
   })
 
   ipcMain.handle('pty:kill', (_event, sessionId: unknown) => {

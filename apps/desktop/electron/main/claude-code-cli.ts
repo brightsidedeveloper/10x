@@ -3,9 +3,9 @@ import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { ipcMain } from 'electron'
-
 import fixPath from 'fix-path'
+
+import { bridge } from './ipc-bridge'
 
 import { readTerminalShellPreference } from './persisted-store'
 import { resolveTerminalShell, resolveWindowsDefault } from './terminal-shell'
@@ -90,6 +90,6 @@ export function claudeCodeInstallInfo(): {
 }
 
 export function registerClaudeCodeCliIpc() {
-  ipcMain.handle('claudeCode:isCliInstalled', () => isClaudeCodeCliInstalled())
-  ipcMain.handle('claudeCode:getInstallCommand', () => claudeCodeInstallInfo())
+  bridge.handle('claudeCode:isCliInstalled', () => isClaudeCodeCliInstalled())
+  bridge.handle('claudeCode:getInstallCommand', () => claudeCodeInstallInfo())
 }

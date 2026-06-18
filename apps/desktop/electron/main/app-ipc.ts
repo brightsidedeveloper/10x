@@ -2,6 +2,7 @@ import os from 'node:os'
 
 import { ipcMain } from 'electron'
 
+import { bridge } from './ipc-bridge'
 import {
   applyNativeChromeTheme,
   isUiColorMode,
@@ -12,7 +13,7 @@ import { readUiColorMode, writeUiColorMode } from './persisted-store'
 /** App-level IPC registered with the rest of the main process (re-register safe for dev HMR). */
 export function registerAppIpc() {
   ipcMain.removeHandler('app:getHomeDir')
-  ipcMain.handle('app:getHomeDir', () => os.homedir())
+  bridge.handle('app:getHomeDir', () => os.homedir())
 
   ipcMain.removeHandler('theme:sync-native-chrome')
   ipcMain.handle('theme:sync-native-chrome', (_event, payload: unknown) => {

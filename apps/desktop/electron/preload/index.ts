@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+import type { PairingPayload, RemoteControlStatus } from '@10x/protocol'
+
 type WorkspaceEntry = { id: string; path: string; label: string }
 
 type ClaudePermissionMode = 'auto' | 'acceptEdits' | 'plan' | 'default'
@@ -512,6 +514,19 @@ const api = {
       ipcRenderer.on('updater:error', listener)
       return () => ipcRenderer.removeListener('updater:error', listener)
     },
+  },
+  remote: {
+    enable: (): Promise<
+      | { ok: true; pairing: PairingPayload; status: RemoteControlStatus }
+      | { ok: false; error: string }
+    > => ipcRenderer.invoke('remote:enable'),
+    disable: (): Promise<RemoteControlStatus> => ipcRenderer.invoke('remote:disable'),
+    status: (): Promise<RemoteControlStatus> => ipcRenderer.invoke('remote:status'),
+    rotatePairingCode: (): Promise<
+      { ok: true; pairing: PairingPayload } | { ok: false; error: string }
+    > => ipcRenderer.invoke('remote:rotatePairingCode'),
+    revokeDevice: (deviceId: string): Promise<RemoteControlStatus> =>
+      ipcRenderer.invoke('remote:revokeDevice', deviceId),
   },
 }
 

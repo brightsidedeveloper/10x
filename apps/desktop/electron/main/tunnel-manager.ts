@@ -4,16 +4,19 @@ import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import fixPath from 'fix-path'
+
+import { bridge } from './ipc-bridge'
+import { emitToRemotes } from './remote/remote-broadcast'
 
 const PROBE_TIMEOUT_MS = 12_000
 
 /** Quick tunnels print this once the edge connection is up. */
 const TRYCLOUDFLARE_URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i
 
-export type TunnelKind = 'web' | 'expo'
+export type TunnelKind = 'web' | 'expo' | 'control'
 
 export type TunnelState = 'starting' | 'ready' | 'error' | 'closed'
 
@@ -46,7 +49,9 @@ function broadcast(channel: string, payload: unknown) {
 }
 
 function emitStatus(record: TunnelRecord) {
-  broadcast('tunnel:status', snapshot(record))
+  const view = snapshot(record)
+  broadcast('tunnel:status', view)
+  emitToRemotes('tunnel:status', view)
 }
 
 /**
@@ -218,6 +223,26 @@ function stopTunnel(id: string): boolean {
   return true
 }
 
+/**
+ * Start a Cloudflare quick tunnel for the remote-control bridge server. Used by the
+ * remote bridge (not the user-facing "Share a dev server" UI); the `'control'` kind
+ * lets the renderer filter it out of the shares list.
+ */
+export function startControlTunnel(port: number): StartTunnelResult {
+  return startTunnel(port, 'control')
+}
+
+/** Stop a tunnel by id (exported for the remote bridge to tear down its control tunnel). */
+export function stopTunnelById(id: string): boolean {
+  return stopTunnel(id)
+}
+
+/** Current snapshot for a tunnel id, or null if it is no longer tracked. */
+export function getTunnelSnapshot(id: string): TunnelSnapshot | null {
+  const record = tunnels.get(id)
+  return record ? snapshot(record) : null
+}
+
 export function stopAllTunnels(): void {
   suppressCloseBroadcast = true
   for (const record of tunnels.values()) {
@@ -231,10 +256,10 @@ export function stopAllTunnels(): void {
 }
 
 export function registerTunnelIpc() {
-  ipcMain.handle('tunnel:isInstalled', () => isCloudflaredInstalled())
-  ipcMain.handle('tunnel:getInstallCommand', () => cloudflaredInstallInfo())
+  bridge.handle('tunnel:isInstalled', () => isCloudflaredInstalled())
+  bridge.handle('tunnel:getInstallCommand', () => cloudflaredInstallInfo())
 
-  ipcMain.handle('tunnel:start', (_event, args: unknown) => {
+  bridge.handle('tunnel:start', ([args]) => {
     const opts = (args ?? {}) as { port?: unknown; kind?: unknown }
     if (!isValidPort(opts.port)) {
       return { ok: false as const, error: 'Enter a valid port (1–65535).' }
@@ -243,12 +268,10 @@ export function registerTunnelIpc() {
     return startTunnel(opts.port, kind)
   })
 
-  ipcMain.handle('tunnel:stop', (_event, id: unknown) => {
+  bridge.handle('tunnel:stop', ([id]) => {
     if (typeof id !== 'string') return false
     return stopTunnel(id)
   })
 
-  ipcMain.handle('tunnel:list', () =>
-    [...tunnels.values()].map(snapshot),
-  )
+  bridge.handle('tunnel:list', () => [...tunnels.values()].map(snapshot))
 }

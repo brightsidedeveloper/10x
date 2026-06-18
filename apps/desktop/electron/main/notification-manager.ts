@@ -1,5 +1,7 @@
 import { BrowserWindow, Notification, app, ipcMain } from 'electron'
 
+import { bridge } from './ipc-bridge'
+import { emitToRemotes } from './remote/remote-broadcast'
 import {
   readAgentNotificationPrefs,
   readClaudePermissionMode,
@@ -12,18 +14,18 @@ import { isClaudePermissionMode } from './claude-session-path'
 
 function broadcastAgentState(sessionId: string, session: SessionInfo | null): void {
   if (session == null) {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send('agent:state-change', {
-          sessionId,
-          state: 'running' satisfies AgentState,
-          needsAttention: false,
-          active: false,
-          hasReceivedInput: false,
-          hasCompletedTurn: false,
-        })
-      }
+    const payload = {
+      sessionId,
+      state: 'running' satisfies AgentState,
+      needsAttention: false,
+      active: false,
+      hasReceivedInput: false,
+      hasCompletedTurn: false,
     }
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send('agent:state-change', payload)
+    }
+    emitToRemotes('agent:state-change', payload)
     return
   }
   const { state } = session
@@ -33,18 +35,18 @@ function broadcastAgentState(sessionId: string, session: SessionInfo | null): vo
       !session.attentionDismissed &&
       session.hasReceivedInput) ||
     (state === 'idle' && !session.attentionDismissed && session.hasCompletedTurn)
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send('agent:state-change', {
-        sessionId,
-        state,
-        needsAttention,
-        active: true,
-        hasReceivedInput: session.hasReceivedInput,
-        hasCompletedTurn: session.hasCompletedTurn,
-      })
-    }
+  const payload = {
+    sessionId,
+    state,
+    needsAttention,
+    active: true,
+    hasReceivedInput: session.hasReceivedInput,
+    hasCompletedTurn: session.hasCompletedTurn,
   }
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('agent:state-change', payload)
+  }
+  emitToRemotes('agent:state-change', payload)
 }
 
 // ─── ANSI stripping ───────────────────────────────────────────────────────────
@@ -498,9 +500,9 @@ export function registerAgentAttentionIpc(): void {
     })
   })
 
-  ipcMain.handle('agent:get-notification-prefs', () => readAgentNotificationPrefs())
+  bridge.handle('agent:get-notification-prefs', () => readAgentNotificationPrefs())
 
-  ipcMain.handle('agent:set-notification-prefs', (_event, payload: unknown) => {
+  bridge.handle('agent:set-notification-prefs', ([payload]) => {
     if (payload == null || typeof payload !== 'object' || Array.isArray(payload)) {
       return { ok: false as const, prefs: readAgentNotificationPrefs() }
     }
@@ -515,9 +517,9 @@ export function registerAgentAttentionIpc(): void {
     return { ok: true as const, prefs: saved }
   })
 
-  ipcMain.handle('agent:get-permission-mode', () => readClaudePermissionMode())
+  bridge.handle('agent:get-permission-mode', () => readClaudePermissionMode())
 
-  ipcMain.handle('agent:set-permission-mode', (_event, payload: unknown) => {
+  bridge.handle('agent:set-permission-mode', ([payload]) => {
     if (!isClaudePermissionMode(payload)) {
       return { ok: false as const, mode: readClaudePermissionMode() }
     }

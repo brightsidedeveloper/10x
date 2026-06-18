@@ -7,10 +7,11 @@ import { useGitCwdForVisibleWorkspace } from '@/features/git/use-git-cwd-for-vis
 import { useActiveWorkspace } from '@/features/workspaces/hooks/use-active-workspace'
 import { SettingsDialog } from '@/features/settings/settings-dialog'
 import { SharePreviewDialog } from '@/features/share-preview/share-preview-dialog'
+import { RemoteControlDialog } from '@/features/remote-control/remote-control-dialog'
 import { runWithStatusActivity } from '@/lib/status/run-with-status-activity'
 import { useGitFocusedCheckoutStore } from '@/stores/git-focused-checkout-store'
 import { useSidePanelStore } from '@/stores/side-panel-store'
-import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Router, Settings } from 'lucide-react'
+import { Code2, FolderOpen, GitGraph, GitCompare, Globe, Radio, Router, Settings } from 'lucide-react'
 
 export function ActivityBar() {
   const active = useActiveWorkspace()
@@ -22,6 +23,7 @@ export function ActivityBar() {
   const [activeWorkspaceIsGitRepo, setActiveWorkspaceIsGitRepo] = useState<boolean | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [remoteOpen, setRemoteOpen] = useState(false)
 
   const activeWorkspacePath = active?.path ?? null
 
@@ -71,6 +73,7 @@ export function ActivityBar() {
     <>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SharePreviewDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <RemoteControlDialog open={remoteOpen} onOpenChange={setRemoteOpen} />
       <aside
         className="flex h-full min-h-0 w-12 shrink-0 flex-col items-center border-r border-border bg-sidebar py-2"
         aria-label="Activity bar"
@@ -131,6 +134,17 @@ export function ActivityBar() {
             onClick={() => setShareOpen(true)}
           >
             <Router className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={activityBarIconButtonClass}
+            title="Remote control — pair your phone to drive 10x on the go"
+            aria-label="Remote control"
+            onClick={() => setRemoteOpen(true)}
+          >
+            <Radio className="size-4" />
           </Button>
           <Button
             type="button"

@@ -17,6 +17,8 @@ import { registerExpoIpc, stopAllExpoSessions } from './expo-manager'
 import { registerIosIpc } from './ios-devices'
 import { registerTunnelIpc, stopAllTunnels } from './tunnel-manager'
 import { registerUpdaterIpc } from './updater-ipc'
+import { registerRemoteIpc, shutdownRemoteBridge } from './remote/remote-ipc'
+import { registerRemoteReadHandlers } from './remote/remote-handlers'
 import { tenxStore, type TenxStoreSchema } from './persisted-store'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -107,6 +109,8 @@ registerClaudeCodeCliIpc()
 registerTunnelIpc()
 registerExpoIpc()
 registerIosIpc()
+registerRemoteIpc()
+registerRemoteReadHandlers()
 
 ipcMain.handle('dialog:pickWorkspace', async (event) => {
   const parent =
@@ -136,6 +140,7 @@ app.on('before-quit', () => {
   killAllPtySessions()
   stopAllTunnels()
   stopAllExpoSessions()
+  void shutdownRemoteBridge()
 })
 
 app.on('window-all-closed', () => {
